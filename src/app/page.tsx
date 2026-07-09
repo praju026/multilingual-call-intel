@@ -31,6 +31,8 @@ export default function Dashboard() {
   const [selectedCall, setSelectedCall] = useState<CallRecord | null>(null);
   const [uploading, setUploading] = useState(false);
   const [uploadProgress, setUploadProgress] = useState(0);
+  const [uploadError, setUploadError] = useState<string | null>(null);
+  const [isDragging, setIsDragging] = useState(false);
   const [activeTab, setActiveTab] = useState<'transcript' | 'summary' | 'actionItems' | 'sentiment' | 'outcome'>('transcript');
   
   // Search & Filters
@@ -41,6 +43,7 @@ export default function Dashboard() {
 
   // Audio Playback
   const audioRef = useRef<HTMLAudioElement | null>(null);
+  const fileInputRef = useRef<HTMLInputElement | null>(null);
   const [isPlaying, setIsPlaying] = useState(false);
   const [currentTime, setCurrentTime] = useState(0);
   const [audioDuration, setAudioDuration] = useState(0);
@@ -136,10 +139,26 @@ export default function Dashboard() {
     };
   }, [calls, selectedCallId]);
 
-  // File Upload Handler with Chunked Uploading support (> 3.5 MB files)
-  const handleFileUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
-    const file = e.target.files?.[0];
-    if (!file) return;
+  // File Upload Handler with validation, drag-and-drop, and automatic Chunked Uploading (> 3.5 MB)
+  const ALLOWED_TYPES = ['audio/mpeg', 'audio/mp3', 'audio/wav', 'audio/x-wav', 'audio/m4a', 'audio/x-m4a', 'audio/mp4'];
+  const MAX_SIZE_MB = 50;
+
+  const uploadFile = async (file: File) => {
+    setUploadError(null);
+
+    // Validate type
+    const ext = file.name.split('.').pop()?.toLowerCase();
+    const isValidType = ALLOWED_TYPES.includes(file.type) || ['mp3', 'wav', 'm4a'].includes(ext || '');
+    if (!isValidType) {
+      setUploadError(`Unsupported file type: "${file.type || ext}". Please upload MP3, WAV, or M4A.`);
+      return;
+    }
+
+    // Validate size
+    if (file.size > MAX_SIZE_MB * 1024 * 1024) {
+      setUploadError(`File too large (${(file.size / 1024 / 1024).toFixed(1)} MB). Maximum size is ${MAX_SIZE_MB} MB.`);
+      return;
+    }
 
     setUploading(true);
     setUploadProgress(5);
@@ -185,13 +204,15 @@ export default function Dashboard() {
         if (finalCallData?.success) {
           await fetchCalls();
           setSelectedCallId(finalCallData.call.id);
+        } else if (finalCallData?.error) {
+          setUploadError(`Upload failed: ${finalCallData.error}`);
         }
       } else {
         const formData = new FormData();
         formData.append('file', file);
 
         const progressInterval = setInterval(() => {
-          setUploadProgress(prev => (prev >= 90 ? 90 : prev + 10));
+          setUploadProgress(prev => (prev >= 85 ? 85 : prev + 10));
         }, 200);
 
         const res = await fetch('/api/upload', {
@@ -212,17 +233,44 @@ export default function Dashboard() {
           await fetchCalls();
           setSelectedCallId(data.call.id);
         } else {
-          alert(`Upload failed: ${data.error}`);
+          setUploadError(`Upload failed: ${data.error}`);
         }
       }
     } catch (err: any) {
-      alert(`Upload failed: ${err.message}`);
+      setUploadError(`Upload failed: ${err.message || 'Network error. Is the server running?'}`);
     } finally {
+      if (fileInputRef.current) fileInputRef.current.value = '';
       setTimeout(() => {
         setUploading(false);
         setUploadProgress(0);
-      }, 500);
+      }, 600);
     }
+  };
+
+  const handleFileInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (file) uploadFile(file);
+  };
+
+  const handleDragOver = (e: React.DragEvent<HTMLDivElement>) => {
+    e.preventDefault();
+    e.stopPropagation();
+    if (!uploading) setIsDragging(true);
+  };
+
+  const handleDragLeave = (e: React.DragEvent<HTMLDivElement>) => {
+    e.preventDefault();
+    e.stopPropagation();
+    setIsDragging(false);
+  };
+
+  const handleDrop = (e: React.DragEvent<HTMLDivElement>) => {
+    e.preventDefault();
+    e.stopPropagation();
+    setIsDragging(false);
+    if (uploading) return;
+    const file = e.dataTransfer.files?.[0];
+    if (file) uploadFile(file);
   };
 
   // Delete Call Handler
@@ -479,52 +527,88 @@ export default function Dashboard() {
               <Upload size={18} style={{ color: 'var(--accent-indigo)' }} /> Upload Recording
             </h4>
             
-            <div style={{ 
-              border: '2px dashed var(--border-light)', 
-              borderRadius: 'var(--radius-md)', 
-              padding: '1.5rem 1rem', 
-              textAlign: 'center',
-              cursor: uploading ? 'not-allowed' : 'pointer',
-              position: 'relative',
-              background: 'rgba(255, 255, 255, 0.02)',
-              transition: 'var(--transition-smooth)'
-            }}
-            onMouseOver={e => e.currentTarget.style.borderColor = 'var(--accent-indigo)'}
-            onMouseOut={e => e.currentTarget.style.borderColor = 'var(--border-light)'}
+            {/* Drop Zone */}
+            <div
+              onClick={() => !uploading && fileInputRef.current?.click()}
+              onDragOver={handleDragOver}
+              onDragEnter={handleDragOver}
+              onDragLeave={handleDragLeave}
+              onDrop={handleDrop}
+              style={{
+                border: `2px dashed ${isDragging ? 'var(--accent-cyan)' : uploading ? 'var(--accent-indigo)' : 'var(--border-light)'}`,
+                borderRadius: 'var(--radius-md)',
+                padding: '1.5rem 1rem',
+                textAlign: 'center',
+                cursor: uploading ? 'not-allowed' : 'pointer',
+                position: 'relative',
+                background: isDragging
+                  ? 'rgba(6, 182, 212, 0.06)'
+                  : uploading
+                  ? 'rgba(99, 102, 241, 0.06)'
+                  : 'rgba(255, 255, 255, 0.02)',
+                transition: 'all 0.2s ease',
+                boxShadow: isDragging ? '0 0 20px rgba(6, 182, 212, 0.2)' : 'none',
+                userSelect: 'none',
+              }}
             >
-              <input 
-                type="file" 
-                accept=".mp3,.wav,.m4a,audio/mpeg,audio/wav,audio/mp3,audio/x-m4a" 
-                onChange={handleFileUpload} 
+              {/* Hidden real file input */}
+              <input
+                ref={fileInputRef}
+                type="file"
+                accept=".mp3,.wav,.m4a,audio/mpeg,audio/wav,audio/mp3,audio/x-m4a,audio/mp4"
+                onChange={handleFileInputChange}
                 disabled={uploading}
-                style={{ 
-                  position: 'absolute', 
-                  top: 0, 
-                  left: 0, 
-                  width: '100%', 
-                  height: '100%', 
-                  opacity: 0, 
-                  cursor: 'pointer' 
-                }} 
+                style={{ display: 'none' }}
               />
-              <FileAudio size={36} style={{ color: 'var(--text-secondary)', marginBottom: '0.75rem' }} />
+              <FileAudio
+                size={36}
+                style={{
+                  color: isDragging ? 'var(--accent-cyan)' : uploading ? 'var(--accent-indigo)' : 'var(--text-secondary)',
+                  marginBottom: '0.75rem',
+                  transition: 'color 0.2s'
+                }}
+              />
               <p style={{ fontSize: '0.85rem', fontWeight: 600, color: 'var(--text-primary)' }}>
-                Drag & Drop or Click
+                {isDragging ? 'Drop to Upload!' : uploading ? 'Uploading...' : 'Drag & Drop or Click'}
               </p>
               <p style={{ fontSize: '0.75rem', color: 'var(--text-muted)', marginTop: '0.25rem' }}>
-                MP3, WAV, or M4A (Max 25MB)
+                MP3, WAV, or M4A · Max 50 MB
               </p>
             </div>
 
+            {/* Progress Bar */}
             {uploading && (
               <div style={{ marginTop: '1rem' }}>
-                <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '0.8rem', marginBottom: '0.25rem' }}>
+                <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '0.8rem', marginBottom: '0.35rem' }}>
                   <span style={{ color: 'var(--accent-indigo)', fontWeight: 600 }}>Uploading...</span>
-                  <span>{uploadProgress}%</span>
+                  <span style={{ color: 'var(--text-secondary)' }}>{uploadProgress}%</span>
                 </div>
-                <div style={{ height: '4px', background: 'var(--bg-tertiary)', borderRadius: '2px', overflow: 'hidden' }}>
-                  <div style={{ height: '100%', width: `${uploadProgress}%`, background: 'var(--accent-indigo)', transition: 'width 0.2s ease-in-out' }} />
+                <div style={{ height: '5px', background: 'var(--bg-tertiary)', borderRadius: '3px', overflow: 'hidden' }}>
+                  <div style={{
+                    height: '100%',
+                    width: `${uploadProgress}%`,
+                    background: 'linear-gradient(90deg, var(--accent-indigo), var(--accent-cyan))',
+                    transition: 'width 0.25s ease-in-out',
+                    borderRadius: '3px'
+                  }} />
                 </div>
+              </div>
+            )}
+
+            {/* Upload Error */}
+            {uploadError && !uploading && (
+              <div style={{
+                marginTop: '0.75rem',
+                padding: '0.6rem 0.8rem',
+                borderRadius: 'var(--radius-sm)',
+                background: 'rgba(239, 68, 68, 0.08)',
+                border: '1px solid rgba(239, 68, 68, 0.25)',
+                display: 'flex',
+                alignItems: 'flex-start',
+                gap: '0.5rem'
+              }}>
+                <AlertTriangle size={14} style={{ color: 'var(--danger)', flexShrink: 0, marginTop: '1px' }} />
+                <p style={{ fontSize: '0.75rem', color: '#f87171', lineHeight: 1.4 }}>{uploadError}</p>
               </div>
             )}
           </div>
