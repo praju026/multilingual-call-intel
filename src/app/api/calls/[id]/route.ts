@@ -2,6 +2,7 @@ import { NextResponse } from 'next/server';
 import path from 'path';
 import fs from 'fs';
 import { getCallById, deleteCall } from '@/lib/db';
+import { getUploadsDir } from '@/lib/storage';
 
 export const dynamic = 'force-dynamic';
 
@@ -39,7 +40,7 @@ export async function DELETE(
     }
 
     // Delete file if it exists
-    const uploadDir = path.join(process.cwd(), 'public', 'uploads');
+    const uploadDir = getUploadsDir();
     const filePath = path.join(uploadDir, call.filename);
     if (fs.existsSync(filePath)) {
       try {

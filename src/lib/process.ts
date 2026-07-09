@@ -3,6 +3,7 @@ import fs from 'fs';
 import { updateCall, getCallById } from './db';
 import { transcribeAudio } from './audio';
 import { generateCallInsights } from './insights';
+import { getUploadsDir } from './storage';
 
 export async function processCall(id: string): Promise<void> {
   const call = getCallById(id);
@@ -11,7 +12,7 @@ export async function processCall(id: string): Promise<void> {
     return;
   }
 
-  const uploadDir = path.join(process.cwd(), 'public', 'uploads');
+  const uploadDir = getUploadsDir();
   const filePath = path.join(uploadDir, call.filename);
 
   if (!fs.existsSync(filePath)) {

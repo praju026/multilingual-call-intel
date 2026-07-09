@@ -168,6 +168,22 @@ export default function Dashboard() {
       clearInterval(progressInterval);
       setUploadProgress(100);
 
+      if (!res.ok) {
+        if (res.status === 413) {
+          throw new Error('File is too large for Vercel Serverless upload limit (max 4.5 MB). Please compress or use a smaller audio file under 4.5 MB.');
+        }
+        const text = await res.text();
+        if (text.includes('Request Entity Too Large') || text.includes('Request En')) {
+          throw new Error('File is too large for Vercel Serverless upload limit (max 4.5 MB). Please compress or use a smaller audio file under 4.5 MB.');
+        }
+        try {
+          const errorJson = JSON.parse(text);
+          throw new Error(errorJson.error || `Error ${res.status}`);
+        } catch {
+          throw new Error(`Upload failed (${res.status}): ${text.slice(0, 100)}`);
+        }
+      }
+
       const data = await res.json();
       if (data.success) {
         // Refresh list and select the new call
@@ -792,7 +808,7 @@ export default function Dashboard() {
                     {/* Hidden Native Audio Element */}
                     <audio 
                       ref={audioRef}
-                      src={`/uploads/${selectedCall.filename}`}
+                      src={`/api/audio/${selectedCall.filename}`}
                       onTimeUpdate={handleTimeUpdate}
                       onLoadedMetadata={handleLoadedMetadata}
                       onEnded={() => setIsPlaying(false)}

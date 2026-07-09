@@ -1,5 +1,6 @@
 import fs from 'fs';
 import path from 'path';
+import { getDataDir } from './storage';
 
 export interface ActionItem {
   task: string;
@@ -41,23 +42,19 @@ export interface CallRecord {
   insights?: CallInsights;
 }
 
-const DB_DIR = path.join(process.cwd(), 'data');
-const DB_FILE = path.join(DB_DIR, 'db.json');
-
-// Ensure database directory and file exist
-function ensureDb() {
-  if (!fs.existsSync(DB_DIR)) {
-    fs.mkdirSync(DB_DIR, { recursive: true });
+function getDbFile(): string {
+  const dbDir = getDataDir();
+  const dbFile = path.join(dbDir, 'db.json');
+  if (!fs.existsSync(dbFile)) {
+    fs.writeFileSync(dbFile, JSON.stringify({ calls: [] }, null, 2), 'utf-8');
   }
-  if (!fs.existsSync(DB_FILE)) {
-    fs.writeFileSync(DB_FILE, JSON.stringify({ calls: [] }, null, 2), 'utf-8');
-  }
+  return dbFile;
 }
 
 export function getCalls(): CallRecord[] {
-  ensureDb();
+  const dbFile = getDbFile();
   try {
-    const data = fs.readFileSync(DB_FILE, 'utf-8');
+    const data = fs.readFileSync(dbFile, 'utf-8');
     const parsed = JSON.parse(data);
     return parsed.calls || [];
   } catch (error) {
@@ -72,15 +69,15 @@ export function getCallById(id: string): CallRecord | undefined {
 }
 
 export function createCall(call: CallRecord): CallRecord {
-  ensureDb();
+  const dbFile = getDbFile();
   const calls = getCalls();
   calls.unshift(call); // Add to the beginning so new calls show up first
-  fs.writeFileSync(DB_FILE, JSON.stringify({ calls }, null, 2), 'utf-8');
+  fs.writeFileSync(dbFile, JSON.stringify({ calls }, null, 2), 'utf-8');
   return call;
 }
 
 export function updateCall(id: string, updates: Partial<CallRecord>): CallRecord {
-  ensureDb();
+  const dbFile = getDbFile();
   const calls = getCalls();
   const index = calls.findIndex(call => call.id === id);
   if (index === -1) {
@@ -90,17 +87,17 @@ export function updateCall(id: string, updates: Partial<CallRecord>): CallRecord
   const updatedCall = { ...calls[index], ...updates };
   calls[index] = updatedCall;
 
-  fs.writeFileSync(DB_FILE, JSON.stringify({ calls }, null, 2), 'utf-8');
+  fs.writeFileSync(dbFile, JSON.stringify({ calls }, null, 2), 'utf-8');
   return updatedCall;
 }
 
 export function deleteCall(id: string): boolean {
-  ensureDb();
+  const dbFile = getDbFile();
   const calls = getCalls();
   const filtered = calls.filter(call => call.id !== id);
   if (filtered.length === calls.length) {
     return false;
   }
-  fs.writeFileSync(DB_FILE, JSON.stringify({ calls: filtered }, null, 2), 'utf-8');
+  fs.writeFileSync(dbFile, JSON.stringify({ calls: filtered }, null, 2), 'utf-8');
   return true;
 }
