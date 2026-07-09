@@ -136,61 +136,84 @@ export default function Dashboard() {
     };
   }, [calls, selectedCallId]);
 
-  // File Upload Handler
+  // File Upload Handler with Chunked Uploading support (> 3.5 MB files)
   const handleFileUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (!file) return;
 
-    // Reset progress
     setUploading(true);
-    setUploadProgress(10);
+    setUploadProgress(5);
 
-    const formData = new FormData();
-    formData.append('file', file);
-
-    // Simulate progress
-    const progressInterval = setInterval(() => {
-      setUploadProgress(prev => {
-        if (prev >= 90) {
-          clearInterval(progressInterval);
-          return 90;
-        }
-        return prev + 10;
-      });
-    }, 200);
+    const CHUNK_SIZE = 3.5 * 1024 * 1024; // 3.5 MB chunks (below Vercel 4.5 MB Serverless limit)
+    const totalChunks = Math.ceil(file.size / CHUNK_SIZE);
 
     try {
-      const res = await fetch('/api/upload', {
-        method: 'POST',
-        body: formData,
-      });
+      if (totalChunks > 1) {
+        const uploadId = Date.now().toString(36) + Math.random().toString(36).substring(2, 8);
+        let finalCallData = null;
 
-      clearInterval(progressInterval);
-      setUploadProgress(100);
+        for (let i = 0; i < totalChunks; i++) {
+          const start = i * CHUNK_SIZE;
+          const end = Math.min(file.size, start + CHUNK_SIZE);
+          const chunkBlob = file.slice(start, end);
 
-      if (!res.ok) {
-        if (res.status === 413) {
-          throw new Error('File is too large for Vercel Serverless upload limit (max 4.5 MB). Please compress or use a smaller audio file under 4.5 MB.');
+          const formData = new FormData();
+          formData.append('file', chunkBlob, file.name);
+          formData.append('chunkIndex', i.toString());
+          formData.append('totalChunks', totalChunks.toString());
+          formData.append('uploadId', uploadId);
+          formData.append('originalName', file.name);
+
+          const res = await fetch('/api/upload', {
+            method: 'POST',
+            body: formData,
+          });
+
+          if (!res.ok) {
+            const text = await res.text();
+            throw new Error(`Chunk ${i + 1}/${totalChunks} upload failed (${res.status}): ${text.slice(0, 100)}`);
+          }
+
+          const data = await res.json();
+          if (data.call) {
+            finalCallData = data;
+          }
+
+          setUploadProgress(Math.round(((i + 1) / totalChunks) * 100));
         }
-        const text = await res.text();
-        if (text.includes('Request Entity Too Large') || text.includes('Request En')) {
-          throw new Error('File is too large for Vercel Serverless upload limit (max 4.5 MB). Please compress or use a smaller audio file under 4.5 MB.');
+
+        if (finalCallData?.success) {
+          await fetchCalls();
+          setSelectedCallId(finalCallData.call.id);
         }
-        try {
-          const errorJson = JSON.parse(text);
-          throw new Error(errorJson.error || `Error ${res.status}`);
-        } catch {
+      } else {
+        const formData = new FormData();
+        formData.append('file', file);
+
+        const progressInterval = setInterval(() => {
+          setUploadProgress(prev => (prev >= 90 ? 90 : prev + 10));
+        }, 200);
+
+        const res = await fetch('/api/upload', {
+          method: 'POST',
+          body: formData,
+        });
+
+        clearInterval(progressInterval);
+        setUploadProgress(100);
+
+        if (!res.ok) {
+          const text = await res.text();
           throw new Error(`Upload failed (${res.status}): ${text.slice(0, 100)}`);
         }
-      }
 
-      const data = await res.json();
-      if (data.success) {
-        // Refresh list and select the new call
-        await fetchCalls();
-        setSelectedCallId(data.call.id);
-      } else {
-        alert(`Upload failed: ${data.error}`);
+        const data = await res.json();
+        if (data.success) {
+          await fetchCalls();
+          setSelectedCallId(data.call.id);
+        } else {
+          alert(`Upload failed: ${data.error}`);
+        }
       }
     } catch (err: any) {
       alert(`Upload failed: ${err.message}`);
