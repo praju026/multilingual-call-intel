@@ -6,7 +6,7 @@ import { generateCallInsights } from './insights';
 import { getUploadsDir } from './storage';
 
 export async function processCall(id: string): Promise<void> {
-  const call = getCallById(id);
+  const call = await getCallById(id);
   if (!call) {
     console.error(`Process call failed: Call ${id} not found in DB.`);
     return;
@@ -15,22 +15,42 @@ export async function processCall(id: string): Promise<void> {
   const uploadDir = getUploadsDir();
   const filePath = path.join(uploadDir, call.filename);
 
+  // If audio is stored in Vercel Blob cloud and not present locally, download it to filePath
+  let downloadedTemp = false;
+  if (!fs.existsSync(filePath) && call.audioUrl && (call.audioUrl.startsWith('http://') || call.audioUrl.startsWith('https://'))) {
+    try {
+      console.log(`[Processing Call ${id}] Downloading cloud audio from ${call.audioUrl}...`);
+      const response = await fetch(call.audioUrl);
+      if (!response.ok) throw new Error(`Failed to download audio: ${response.statusText}`);
+      const arrayBuf = await response.arrayBuffer();
+      fs.writeFileSync(filePath, Buffer.from(arrayBuf));
+      downloadedTemp = true;
+    } catch (dlErr: any) {
+      console.error(`[Processing Call ${id}] Cloud audio download error:`, dlErr);
+    }
+  }
+
   if (!fs.existsSync(filePath)) {
-    const errorMsg = `Audio file not found at ${filePath}`;
+    const errorMsg = `Audio file not found locally or in cloud for ${call.filename}`;
     console.error(errorMsg);
-    updateCall(id, { status: 'failed', error: errorMsg });
+    await updateCall(id, { status: 'failed', error: errorMsg });
     return;
   }
 
   try {
     // 1. Update status to transcribing
-    updateCall(id, { status: 'transcribing' });
+    await updateCall(id, { status: 'transcribing' });
     console.log(`[Processing Call ${id}] Starting speech-to-text...`);
     
     const transcription = await transcribeAudio(filePath);
     
+    // Clean up temporary downloaded file if it was retrieved from cloud
+    if (downloadedTemp && call.isCloud && fs.existsSync(filePath)) {
+      try { fs.unlinkSync(filePath); } catch {}
+    }
+
     // 2. Update status to analyzing
-    updateCall(id, {
+    await updateCall(id, {
       status: 'analyzing',
       duration: transcription.duration,
       transcript: transcription.transcript
@@ -44,7 +64,7 @@ export async function processCall(id: string): Promise<void> {
     const languages = insights.detectedLanguages || transcription.detectedLanguages || [];
 
     // 4. Update status to completed
-    updateCall(id, {
+    await updateCall(id, {
       status: 'completed',
       insights: {
         summary: insights.summary,
@@ -61,7 +81,7 @@ export async function processCall(id: string): Promise<void> {
     console.log(`[Processing Call ${id}] Processing completed successfully.`);
   } catch (error: any) {
     console.error(`[Processing Call ${id}] Error:`, error);
-    updateCall(id, {
+    await updateCall(id, {
       status: 'failed',
       error: error.message || 'An unknown error occurred during processing.'
     });

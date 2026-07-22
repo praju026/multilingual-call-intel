@@ -51,6 +51,28 @@ GEMINI_API_KEY=your_actual_gemini_api_key_here
 ASSEMBLYAI_API_KEY=your_actual_assemblyai_api_key_here
 
 # ==========================================
+# 🔐 Clerk Authentication (Optional - Multi-User Login)
+# ==========================================
+# Enables multi-user sign in, sign up, and private account isolation.
+# Note: If omitted, the app runs in Local Offline Mode as 'guest'.
+NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY=your_clerk_publishable_key
+CLERK_SECRET_KEY=your_clerk_secret_key
+
+# ==========================================
+# ☁️ Vercel Blob Cloud Storage (Optional - Permanent Audio Storage)
+# ==========================================
+# Persists audio files across serverless container restarts.
+# Note: If omitted, uploads default to local filesystem (/tmp or public/uploads).
+BLOB_READ_WRITE_TOKEN=your_vercel_blob_token
+
+# ==========================================
+# 🗄️ Vercel Postgres / Neon Database (Optional - SQL Storage)
+# ==========================================
+# Stores call metadata and insights permanently in PostgreSQL.
+# Note: If omitted, records fall back to local data/db.json file.
+POSTGRES_URL=your_postgres_connection_string
+
+# ==========================================
 # 🌐 Network Reliability & Best Practices
 # ==========================================
 # Prevents Node.js IPv6 socket drops ("UND_ERR_SOCKET: other side closed") when communicating with AI APIs

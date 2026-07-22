@@ -59,3 +59,48 @@ export function getDataDir(): string {
     return tmpDir;
   }
 }
+
+export function hasCloudBlobStorage(): boolean {
+  return Boolean(process.env.BLOB_READ_WRITE_TOKEN);
+}
+
+export async function uploadAudioFile(buffer: Buffer, filename: string): Promise<{ url: string; isCloud: boolean }> {
+  if (hasCloudBlobStorage()) {
+    try {
+      const { put } = await import('@vercel/blob');
+      const blob = await put(filename, buffer, { access: 'public' });
+      return { url: blob.url, isCloud: true };
+    } catch (err: any) {
+      console.warn('[AuraIntel Storage] Vercel Blob upload failed, falling back to local filesystem:', err.message);
+    }
+  }
+
+  const uploadsDir = getUploadsDir();
+  const filePath = path.join(uploadsDir, filename);
+  fs.writeFileSync(filePath, buffer);
+  return { url: filename, isCloud: false };
+}
+
+export async function deleteAudioFile(filenameOrUrl: string): Promise<boolean> {
+  if (filenameOrUrl.startsWith('http://') || filenameOrUrl.startsWith('https://')) {
+    if (hasCloudBlobStorage()) {
+      try {
+        const { del } = await import('@vercel/blob');
+        await del(filenameOrUrl);
+        return true;
+      } catch (err: any) {
+        console.warn('[AuraIntel Storage] Failed to delete blob:', err.message);
+        return false;
+      }
+    }
+    return false;
+  }
+
+  const uploadsDir = getUploadsDir();
+  const filePath = path.join(uploadsDir, filenameOrUrl);
+  if (fs.existsSync(filePath)) {
+    fs.unlinkSync(filePath);
+    return true;
+  }
+  return false;
+}

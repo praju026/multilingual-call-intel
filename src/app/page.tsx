@@ -24,6 +24,7 @@ import {
 } from 'lucide-react';
 
 import { CallRecord, TranscriptTurn, ActionItem } from '@/lib/db';
+import AuthButtons from '@/components/AuthButtons';
 
 export default function Dashboard() {
   const [calls, setCalls] = useState<CallRecord[]>([]);
@@ -451,11 +452,12 @@ export default function Dashboard() {
           </p>
         </div>
 
-        {/* Global Key configuration alert */}
-        <div style={{ display: 'flex', gap: '0.75rem' }}>
+        {/* Global Key configuration alert & Auth */}
+        <div style={{ display: 'flex', gap: '0.75rem', alignItems: 'center' }}>
           <div className="badge badge-info" style={{ gap: '0.35rem', padding: '0.5rem 0.75rem' }}>
             <Languages size={14} /> Supported: EN | HI | TE | TA
           </div>
+          <AuthButtons />
         </div>
       </header>
 

@@ -1,8 +1,7 @@
 import { NextResponse } from 'next/server';
-import path from 'path';
-import fs from 'fs';
 import { getCallById, deleteCall } from '@/lib/db';
-import { getUploadsDir } from '@/lib/storage';
+import { deleteAudioFile } from '@/lib/storage';
+import { getAuthenticatedUserId } from '@/lib/auth-helper';
 
 export const dynamic = 'force-dynamic';
 
@@ -13,7 +12,8 @@ export async function GET(
   try {
     const params = await props.params;
     const id = params.id;
-    const call = getCallById(id);
+    const userId = await getAuthenticatedUserId();
+    const call = await getCallById(id, userId);
 
     if (!call) {
       return NextResponse.json({ error: 'Call not found.' }, { status: 404 });
@@ -33,24 +33,17 @@ export async function DELETE(
   try {
     const params = await props.params;
     const id = params.id;
-    const call = getCallById(id);
+    const userId = await getAuthenticatedUserId();
+    const call = await getCallById(id, userId);
 
     if (!call) {
-      return NextResponse.json({ error: 'Call not found.' }, { status: 404 });
+      return NextResponse.json({ error: 'Call not found or unauthorized.' }, { status: 404 });
     }
 
-    // Delete file if it exists
-    const uploadDir = getUploadsDir();
-    const filePath = path.join(uploadDir, call.filename);
-    if (fs.existsSync(filePath)) {
-      try {
-        fs.unlinkSync(filePath);
-      } catch (fileErr) {
-        console.error(`Failed to delete physical file: ${filePath}`, fileErr);
-      }
-    }
+    // Delete file if it exists (cloud or local)
+    await deleteAudioFile(call.audioUrl || call.filename);
 
-    const deleted = deleteCall(id);
+    const deleted = await deleteCall(id, userId);
     if (!deleted) {
       return NextResponse.json({ error: 'Failed to delete call record.' }, { status: 500 });
     }

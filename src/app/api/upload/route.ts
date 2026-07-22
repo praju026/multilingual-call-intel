@@ -3,12 +3,14 @@ import path from 'path';
 import fs from 'fs';
 import { createCall } from '@/lib/db';
 import { processCall } from '@/lib/process';
-import { getUploadsDir, isServerlessEnvironment } from '@/lib/storage';
+import { getUploadsDir, isServerlessEnvironment, uploadAudioFile } from '@/lib/storage';
+import { getAuthenticatedUserId } from '@/lib/auth-helper';
 
 export const dynamic = 'force-dynamic';
 
 export async function POST(request: Request) {
   try {
+    const userId = await getAuthenticatedUserId();
     const formData = await request.formData();
     const file = formData.get('file') as File | null;
     const chunkIndexStr = formData.get('chunkIndex') as string | null;
@@ -64,13 +66,23 @@ export async function POST(request: Request) {
         writeStream.on('error', reject);
       });
 
-      const newCall = createCall({
+      // Upload reassembled file to cloud or keep local
+      const reassembledBuffer = fs.readFileSync(finalFilePath);
+      const { url: audioUrl, isCloud } = await uploadAudioFile(reassembledBuffer, filename);
+      if (isCloud && fs.existsSync(finalFilePath)) {
+        try { fs.unlinkSync(finalFilePath); } catch {}
+      }
+
+      const newCall = await createCall({
         id,
         filename,
         originalName,
         duration: 0,
         status: 'queued',
         createdAt: new Date().toISOString(),
+        userId,
+        audioUrl,
+        isCloud,
       });
 
       if (isServerlessEnvironment()) {
@@ -90,16 +102,19 @@ export async function POST(request: Request) {
     const id = Date.now().toString(36) + Math.random().toString(36).substring(2, 8);
     const ext = path.extname(file.name) || '.mp3';
     const filename = `${id}${ext}`;
-    const filePath = path.join(uploadDir, filename);
-    fs.writeFileSync(filePath, buffer);
 
-    const newCall = createCall({
+    const { url: audioUrl, isCloud } = await uploadAudioFile(buffer, filename);
+
+    const newCall = await createCall({
       id,
       filename,
       originalName: file.name,
       duration: 0,
       status: 'queued',
       createdAt: new Date().toISOString(),
+      userId,
+      audioUrl,
+      isCloud,
     });
 
     if (isServerlessEnvironment()) {

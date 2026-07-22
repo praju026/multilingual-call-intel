@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server';
 import { getCallById, updateCall } from '@/lib/db';
 import { processCall } from '@/lib/process';
+import { getAuthenticatedUserId } from '@/lib/auth-helper';
 
 export const dynamic = 'force-dynamic';
 
@@ -11,14 +12,15 @@ export async function POST(
   try {
     const params = await props.params;
     const id = params.id;
-    const call = getCallById(id);
+    const userId = await getAuthenticatedUserId();
+    const call = await getCallById(id, userId);
 
     if (!call) {
-      return NextResponse.json({ error: 'Call not found.' }, { status: 404 });
+      return NextResponse.json({ error: 'Call not found or unauthorized.' }, { status: 404 });
     }
 
     // Reset status and error
-    updateCall(id, { status: 'queued', error: undefined });
+    await updateCall(id, { status: 'queued', error: undefined });
 
     // Start background processing
     processCall(id).catch(err => {
