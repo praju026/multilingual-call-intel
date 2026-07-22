@@ -177,11 +177,14 @@ export async function transcribeAudio(filePath: string): Promise<TranscriptionRe
             model: 'gemini-2.5-flash',
             contents: [
               uploadResult,
-              `You are an expert audio transcription system. Transcribe this audio recording. 
-               Detect the languages used (including English, Hindi, Telugu, Tamil, and multilingual code-switching).
-               Differentiate speakers. 
-               Estimate start and end timestamps for each utterance in MM:SS format. 
-               Provide the result in the exact JSON schema provided.`
+              `You are an expert audio transcription system. Transcribe the EXACT spoken words verbatim from the audio recording.
+CRITICAL RULES:
+1. NEVER translate the speech. Transcribe strictly in the exact language actually spoken.
+2. If the speakers speak purely in English (even with an Indian or regional accent), transcribe the text strictly in English.
+3. Only include Hindi, Telugu, Tamil, or regional words if the speaker actually speaks those exact words in the audio (code-switching).
+4. Differentiate speakers clearly (Speaker A, Speaker B, etc.).
+5. Estimate accurate start and end timestamps for each utterance in MM:SS format.
+6. Provide the output strictly matching the provided JSON schema.`
             ],
             config: {
               responseMimeType: 'application/json',
