@@ -181,10 +181,12 @@ export async function transcribeAudio(filePath: string): Promise<TranscriptionRe
 CRITICAL RULES:
 1. NEVER translate the speech. Transcribe strictly in the exact language actually spoken.
 2. If the speakers speak purely in English (even with an Indian or regional accent), transcribe the text strictly in English.
-3. Only include Hindi, Telugu, Tamil, or regional words if the speaker actually speaks those exact words in the audio (code-switching).
-4. Differentiate speakers clearly (Speaker A, Speaker B, etc.).
-5. Estimate accurate start and end timestamps for each utterance in MM:SS format.
-6. Provide the output strictly matching the provided JSON schema.`
+3. DO NOT transliterate English words into Devanagari (Hindi) or regional scripts. If a word is English, write it in the English alphabet (e.g., write "Hello", NOT "हेलो", write "Speaking", NOT "स्पीकिंग").
+4. Names of people, places, or companies (e.g., "Prajwal", "Bangalore", "Vibri") MUST be written in English alphabet when spoken in an English context.
+5. Only use Hindi, Telugu, Tamil, or regional scripts if the speaker actually speaks those exact regional words (code-switching).
+6. Differentiate speakers clearly (Speaker A, Speaker B, etc.).
+7. Estimate accurate start and end timestamps for each utterance in MM:SS format.
+8. Provide the output strictly matching the provided JSON schema.`
             ],
             config: {
               responseMimeType: 'application/json',
