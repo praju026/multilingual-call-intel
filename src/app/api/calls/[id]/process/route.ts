@@ -19,8 +19,23 @@ export async function POST(
       return NextResponse.json({ error: 'Call not found or unauthorized.' }, { status: 404 });
     }
 
-    // Reset status and error
-    await updateCall(id, { status: 'queued', error: undefined });
+    // Parse optional language from request body
+    let language: string | undefined = undefined;
+    try {
+      const body = await request.json();
+      if (body && body.language) {
+        language = body.language;
+      }
+    } catch (e) {
+      // Ignore JSON parse errors if body is empty
+    }
+
+    // Reset status and error, update language if provided
+    await updateCall(id, { 
+      status: 'queued', 
+      error: undefined,
+      ...(language && { language })
+    });
 
     // Start background processing
     processCall(id).catch(err => {

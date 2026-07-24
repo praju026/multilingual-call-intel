@@ -37,11 +37,11 @@ export default function Dashboard() {
   const [selectedUploadLanguage, setSelectedUploadLanguage] = useState('auto');
   const [activeTab, setActiveTab] = useState<'transcript' | 'summary' | 'actionItems' | 'sentiment' | 'outcome'>('transcript');
   
-  // Search & Filters
   const [callSearch, setCallSearch] = useState('');
   const [transcriptSearch, setTranscriptSearch] = useState('');
   const [languageFilter, setLanguageFilter] = useState('');
   const [speakerFilter, setSpeakerFilter] = useState('');
+  const [reprocessLanguage, setReprocessLanguage] = useState('');
 
   // Audio Playback
   const audioRef = useRef<HTMLAudioElement | null>(null);
@@ -306,6 +306,26 @@ export default function Dashboard() {
     try {
       const res = await fetch(`/api/calls/${id}/process`, {
         method: 'POST',
+      });
+      const data = await res.json();
+      if (data.success) {
+        fetchCalls();
+        if (selectedCallId === id) {
+          fetchCallDetail(id);
+        }
+      }
+    } catch (err) {
+      console.error(err);
+    }
+  };
+
+  // Reprocess processing with new language
+  const handleReprocess = async (id: string, language: string) => {
+    try {
+      const res = await fetch(`/api/calls/${id}/process`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ language })
       });
       const data = await res.json();
       if (data.success) {
@@ -852,7 +872,48 @@ export default function Dashboard() {
                   </div>
                 </div>
 
-                <div style={{ display: 'flex', gap: '0.5rem' }}>
+                <div style={{ display: 'flex', gap: '0.75rem', alignItems: 'center' }}>
+                  {/* Reprocess Dropdown & Button */}
+                  {(selectedCall.status === 'completed' || selectedCall.status === 'failed') && (
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '0.35rem', borderRight: '1px solid var(--border-light)', paddingRight: '0.75rem' }}>
+                      <select 
+                        value={reprocessLanguage}
+                        onChange={(e) => setReprocessLanguage(e.target.value)}
+                        className="input-text"
+                        style={{ 
+                          padding: '0.3rem 1.5rem 0.3rem 0.5rem', 
+                          fontSize: '0.75rem', 
+                          height: 'auto', 
+                          appearance: 'none',
+                          backgroundImage: `url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 24 24' fill='none' stroke='%2394a3b8' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpolyline points='6 9 12 15 18 9'%3E%3C/polyline%3E%3C/svg%3E")`,
+                          backgroundRepeat: 'no-repeat',
+                          backgroundPosition: 'right 0.35rem center',
+                        }}
+                      >
+                        <option value="">Language...</option>
+                        <option value="en">English</option>
+                        <option value="hi">Hindi</option>
+                        <option value="ta">Tamil</option>
+                        <option value="te">Telugu</option>
+                        <option value="ml">Malayalam</option>
+                        <option value="kn">Kannada</option>
+                      </select>
+                      <button 
+                        onClick={() => {
+                          if (reprocessLanguage) {
+                            handleReprocess(selectedCall.id, reprocessLanguage);
+                            setReprocessLanguage(''); // Reset after trigger
+                          }
+                        }}
+                        className="btn-secondary"
+                        disabled={!reprocessLanguage}
+                        style={{ padding: '0.3rem 0.75rem', fontSize: '0.75rem', opacity: !reprocessLanguage ? 0.5 : 1 }}
+                      >
+                        <RefreshCw size={12} /> Reprocess
+                      </button>
+                    </div>
+                  )}
+
                   {['queued', 'transcribing', 'analyzing'].includes(selectedCall.status) && (
                     <div className="badge badge-warning pulse-glow" style={{ gap: '0.3rem' }}>
                       <RefreshCw size={12} className="spin-slow" /> Processing: {selectedCall.status}
