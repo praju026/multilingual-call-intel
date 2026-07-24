@@ -176,7 +176,12 @@ export async function transcribeAudio(filePath: string): Promise<TranscriptionRe
           response = await ai.models.generateContent({
             model: 'gemini-2.5-flash',
             contents: [
-              uploadResult,
+              {
+                fileData: {
+                  fileUri: uploadResult.uri,
+                  mimeType: uploadResult.mimeType
+                }
+              },
               `You are an expert audio transcription system. Transcribe the EXACT spoken words verbatim from the audio recording.
 CRITICAL RULES:
 1. NEVER translate the speech. Transcribe strictly in the exact language actually spoken.
