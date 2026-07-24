@@ -43,6 +43,7 @@ export interface CallRecord {
   userId?: string; // Clerk user ID or 'guest'
   audioUrl?: string; // Vercel Blob URL or local filename
   isCloud?: boolean;
+  language?: string; // e.g., 'en', 'hi', 'te', 'ta', 'auto'
 }
 
 export function hasCloudDatabase(): boolean {

@@ -32,7 +32,7 @@ export interface TranscriptionResult {
   duration: number; // in seconds
 }
 
-export async function transcribeAudio(filePath: string): Promise<TranscriptionResult> {
+export async function transcribeAudio(filePath: string, language: string = 'auto'): Promise<TranscriptionResult> {
   const assemblyKey = process.env.ASSEMBLYAI_API_KEY;
   const geminiKey = process.env.GEMINI_API_KEY;
 
@@ -65,11 +65,18 @@ export async function transcribeAudio(filePath: string): Promise<TranscriptionRe
       console.log('Starting AssemblyAI transcription...');
       const client = new AssemblyAI({ apiKey: assemblyKey });
       
-      const transcript = await client.transcripts.transcribe({
+      const transcribeParams: any = {
         audio: filePath,
         speaker_labels: true,
-        language_detection: true,
-      });
+      };
+
+      if (language && language !== 'auto') {
+        transcribeParams.language_code = language;
+      } else {
+        transcribeParams.language_detection = true;
+      }
+
+      const transcript = await client.transcripts.transcribe(transcribeParams);
 
       if (transcript.status === 'error') {
         throw new Error(`AssemblyAI Error: ${transcript.error}`);
@@ -183,6 +190,7 @@ export async function transcribeAudio(filePath: string): Promise<TranscriptionRe
                 }
               },
               `You are an expert audio transcription system. Transcribe the EXACT spoken words verbatim from the audio recording.
+${language && language !== 'auto' ? `\nCRITICAL: The primary language spoken in this audio is "${language}". You MUST transcribe strictly in this language when appropriate.` : ''}
 CRITICAL RULES:
 1. NEVER translate the speech. Transcribe strictly in the exact language actually spoken.
 2. If the speakers speak purely in English (even with an Indian or regional accent), transcribe the text strictly in English.

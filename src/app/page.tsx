@@ -34,6 +34,7 @@ export default function Dashboard() {
   const [uploadProgress, setUploadProgress] = useState(0);
   const [uploadError, setUploadError] = useState<string | null>(null);
   const [isDragging, setIsDragging] = useState(false);
+  const [selectedUploadLanguage, setSelectedUploadLanguage] = useState('auto');
   const [activeTab, setActiveTab] = useState<'transcript' | 'summary' | 'actionItems' | 'sentiment' | 'outcome'>('transcript');
   
   // Search & Filters
@@ -183,6 +184,7 @@ export default function Dashboard() {
           formData.append('totalChunks', totalChunks.toString());
           formData.append('uploadId', uploadId);
           formData.append('originalName', file.name);
+          formData.append('language', selectedUploadLanguage);
 
           const res = await fetch('/api/upload', {
             method: 'POST',
@@ -211,6 +213,7 @@ export default function Dashboard() {
       } else {
         const formData = new FormData();
         formData.append('file', file);
+        formData.append('language', selectedUploadLanguage);
 
         const progressInterval = setInterval(() => {
           setUploadProgress(prev => (prev >= 85 ? 85 : prev + 10));
@@ -576,6 +579,26 @@ export default function Dashboard() {
               <p style={{ fontSize: '0.75rem', color: 'var(--text-muted)', marginTop: '0.25rem' }}>
                 MP3, WAV, or M4A · Max 50 MB
               </p>
+            </div>
+
+            {/* Language Selection */}
+            <div style={{ marginTop: '1rem', display: 'flex', flexDirection: 'column', gap: '0.4rem' }}>
+              <label style={{ fontSize: '0.85rem', color: 'var(--text-secondary)', fontWeight: 600 }}>Primary Language (Optional)</label>
+              <select 
+                value={selectedUploadLanguage}
+                onChange={(e) => setSelectedUploadLanguage(e.target.value)}
+                disabled={uploading}
+                className="input-base"
+                style={{ cursor: uploading ? 'not-allowed' : 'pointer' }}
+              >
+                <option value="auto">Auto-Detect (Default)</option>
+                <option value="en">English</option>
+                <option value="hi">Hindi</option>
+                <option value="ta">Tamil</option>
+                <option value="te">Telugu</option>
+                <option value="ml">Malayalam</option>
+                <option value="kn">Kannada</option>
+              </select>
             </div>
 
             {/* Progress Bar */}

@@ -42,7 +42,7 @@ export async function processCall(id: string): Promise<void> {
     await updateCall(id, { status: 'transcribing' });
     console.log(`[Processing Call ${id}] Starting speech-to-text...`);
     
-    const transcription = await transcribeAudio(filePath);
+    const transcription = await transcribeAudio(filePath, call.language);
     
     // Clean up temporary downloaded file if it was retrieved from cloud
     if (downloadedTemp && call.isCloud && fs.existsSync(filePath)) {

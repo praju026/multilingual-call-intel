@@ -17,6 +17,7 @@ export async function POST(request: Request) {
     const totalChunksStr = formData.get('totalChunks') as string | null;
     const uploadId = formData.get('uploadId') as string | null;
     const originalNameParam = formData.get('originalName') as string | null;
+    const languageParam = formData.get('language') as string | null;
 
     if (!file) {
       return NextResponse.json({ error: 'No file uploaded.' }, { status: 400 });
@@ -83,6 +84,7 @@ export async function POST(request: Request) {
         userId,
         audioUrl,
         isCloud,
+        language: languageParam || 'auto',
       });
 
       if (isServerlessEnvironment()) {
@@ -115,6 +117,7 @@ export async function POST(request: Request) {
       userId,
       audioUrl,
       isCloud,
+      language: languageParam || 'auto',
     });
 
     if (isServerlessEnvironment()) {
