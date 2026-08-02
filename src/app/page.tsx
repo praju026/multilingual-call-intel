@@ -601,33 +601,7 @@ export default function Dashboard() {
               </p>
             </div>
 
-            {/* Language Selection */}
-            <div style={{ marginTop: '1.25rem', display: 'flex', flexDirection: 'column', gap: '0.5rem', textAlign: 'left' }}>
-              <label style={{ fontSize: '0.85rem', color: 'var(--text-secondary)', fontWeight: 600 }}>Primary Language (Optional)</label>
-              <select 
-                value={selectedUploadLanguage}
-                onChange={(e) => setSelectedUploadLanguage(e.target.value)}
-                disabled={uploading}
-                className="input-text"
-                style={{ 
-                  cursor: uploading ? 'not-allowed' : 'pointer',
-                  width: '100%',
-                  appearance: 'none',
-                  backgroundImage: `url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='16' height='16' viewBox='0 0 24 24' fill='none' stroke='%2394a3b8' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpolyline points='6 9 12 15 18 9'%3E%3C/polyline%3E%3C/svg%3E")`,
-                  backgroundRepeat: 'no-repeat',
-                  backgroundPosition: 'right 1rem center',
-                  paddingRight: '2.5rem'
-                }}
-              >
-                <option value="auto">Auto-Detect (Default)</option>
-                <option value="en">English</option>
-                <option value="hi">Hindi</option>
-                <option value="ta">Tamil</option>
-                <option value="te">Telugu</option>
-                <option value="ml">Malayalam</option>
-                <option value="kn">Kannada</option>
-              </select>
-            </div>
+
 
             {/* Progress Bar */}
             {uploading && (
