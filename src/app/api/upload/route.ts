@@ -1,4 +1,4 @@
-import { NextResponse } from 'next/server';
+import { NextResponse, after } from 'next/server';
 import path from 'path';
 import fs from 'fs';
 import { createCall } from '@/lib/db';
@@ -7,7 +7,7 @@ import { getUploadsDir, isServerlessEnvironment, uploadAudioFile } from '@/lib/s
 import { getAuthenticatedUserId } from '@/lib/auth-helper';
 
 export const dynamic = 'force-dynamic';
-
+export const maxDuration = 60; // Vercel hobby max limit
 export async function POST(request: Request) {
   try {
     const userId = await getAuthenticatedUserId();
@@ -88,8 +88,10 @@ export async function POST(request: Request) {
       });
 
       if (isServerlessEnvironment()) {
-        await processCall(id).catch(err => {
-          console.error(`Processing for call ${id} failed:`, err);
+        after(() => {
+          processCall(id).catch(err => {
+            console.error(`Processing for call ${id} failed:`, err);
+          });
         });
       } else {
         processCall(id).catch(err => {
@@ -121,8 +123,10 @@ export async function POST(request: Request) {
     });
 
     if (isServerlessEnvironment()) {
-      await processCall(id).catch(err => {
-        console.error(`Processing for call ${id} failed:`, err);
+      after(() => {
+        processCall(id).catch(err => {
+          console.error(`Processing for call ${id} failed:`, err);
+        });
       });
     } else {
       processCall(id).catch(err => {

@@ -1,10 +1,11 @@
-import { NextResponse } from 'next/server';
+import { NextResponse, after } from 'next/server';
 import { getCallById, updateCall } from '@/lib/db';
 import { processCall } from '@/lib/process';
 import { getAuthenticatedUserId } from '@/lib/auth-helper';
 import { isServerlessEnvironment } from '@/lib/storage';
 
 export const dynamic = 'force-dynamic';
+export const maxDuration = 60; // Vercel hobby max limit
 
 export async function POST(
   request: Request,
@@ -40,8 +41,10 @@ export async function POST(
 
     // Start background processing
     if (isServerlessEnvironment()) {
-      await processCall(id).catch(err => {
-        console.error(`Processing for call ${id} failed:`, err);
+      after(() => {
+        processCall(id).catch(err => {
+          console.error(`Processing for call ${id} failed:`, err);
+        });
       });
     } else {
       processCall(id).catch(err => {
