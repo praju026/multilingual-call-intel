@@ -873,45 +873,7 @@ export default function Dashboard() {
                 </div>
 
                 <div style={{ display: 'flex', gap: '0.75rem', alignItems: 'center' }}>
-                  {/* Reprocess Dropdown & Button */}
-                  {(selectedCall.status === 'completed' || selectedCall.status === 'failed') && (
-                    <div style={{ display: 'flex', alignItems: 'center', gap: '0.4rem', borderRight: '1px solid var(--border-light)', paddingRight: '0.75rem' }}>
-                      <span style={{ fontSize: '0.7rem', color: 'var(--text-secondary)', textTransform: 'uppercase', fontWeight: 600, letterSpacing: '0.5px' }}>
-                        Audio Language:
-                      </span>
-                      <select 
-                        value={selectedCall.language || 'auto'}
-                        onChange={(e) => {
-                          const val = e.target.value;
-                          if (val !== (selectedCall.language || 'auto')) {
-                            handleReprocess(selectedCall.id, val);
-                          }
-                        }}
-                        className="input-text"
-                        title="Change language to instantly reprocess transcript"
-                        style={{ 
-                          padding: '0.2rem 1.4rem 0.2rem 0.5rem', 
-                          fontSize: '0.75rem', 
-                          height: 'auto', 
-                          appearance: 'none',
-                          backgroundImage: `url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 24 24' fill='none' stroke='%2394a3b8' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpolyline points='6 9 12 15 18 9'%3E%3C/polyline%3E%3C/svg%3E")`,
-                          backgroundRepeat: 'no-repeat',
-                          backgroundPosition: 'right 0.35rem center',
-                          cursor: 'pointer',
-                          border: '1px solid rgba(255, 255, 255, 0.1)',
-                          backgroundColor: 'rgba(255, 255, 255, 0.03)'
-                        }}
-                      >
-                        <option value="auto">Auto-Detect</option>
-                        <option value="en">English</option>
-                        <option value="hi">Hindi</option>
-                        <option value="ta">Tamil</option>
-                        <option value="te">Telugu</option>
-                        <option value="ml">Malayalam</option>
-                        <option value="kn">Kannada</option>
-                      </select>
-                    </div>
-                  )}
+
 
                   {['queued', 'transcribing', 'analyzing'].includes(selectedCall.status) && (
                     <div className="badge badge-warning pulse-glow" style={{ gap: '0.3rem' }}>
