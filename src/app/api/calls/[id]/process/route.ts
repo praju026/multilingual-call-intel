@@ -2,6 +2,7 @@ import { NextResponse } from 'next/server';
 import { getCallById, updateCall } from '@/lib/db';
 import { processCall } from '@/lib/process';
 import { getAuthenticatedUserId } from '@/lib/auth-helper';
+import { isServerlessEnvironment } from '@/lib/storage';
 
 export const dynamic = 'force-dynamic';
 
@@ -38,11 +39,17 @@ export async function POST(
     });
 
     // Start background processing
-    processCall(id).catch(err => {
-      console.error(`Background retried processing for call ${id} failed:`, err);
-    });
+    if (isServerlessEnvironment()) {
+      await processCall(id).catch(err => {
+        console.error(`Processing for call ${id} failed:`, err);
+      });
+    } else {
+      processCall(id).catch(err => {
+        console.error(`Background retried processing for call ${id} failed:`, err);
+      });
+    }
 
-    return NextResponse.json({ success: true, message: 'Processing started in the background.' });
+    return NextResponse.json({ success: true, message: 'Processing triggered.' });
   } catch (error: any) {
     console.error('Trigger process API error:', error);
     return NextResponse.json({ error: error.message || 'Failed to trigger processing.' }, { status: 500 });
