@@ -873,11 +873,11 @@ export default function Dashboard() {
                 </div>
 
                 <div style={{ display: 'flex', gap: '0.75rem', alignItems: 'center' }}>
-                  {/* Reprocess Dropdown & Button */}
+                  {/* Reprocess Dropdown */}
                   {(selectedCall.status === 'completed' || selectedCall.status === 'failed') && (
                     <div style={{ display: 'flex', alignItems: 'center', gap: '0.4rem', borderRight: '1px solid var(--border-light)', paddingRight: '0.75rem' }}>
                       <span style={{ fontSize: '0.7rem', color: 'var(--text-secondary)', textTransform: 'uppercase', fontWeight: 600, letterSpacing: '0.5px' }}>
-                        Audio Language:
+                        Reprocess Audio:
                       </span>
                       <select 
                         value={selectedCall.language || 'auto'}
