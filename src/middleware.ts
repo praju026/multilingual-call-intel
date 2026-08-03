@@ -16,6 +16,7 @@ if (hasClerkKeys) {
       '/sign-in(.*)',
       '/sign-up(.*)',
       '/api/audio/(.*)', // Audio streaming needs public or token access
+      '/api/webhooks/(.*)', // Webhooks must be public for external services
     ]);
 
     clerkHandler = clerkMiddleware(async (auth: any, req: NextRequest) => {
