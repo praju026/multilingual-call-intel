@@ -74,7 +74,8 @@ export async function processCall(id: string): Promise<void> {
         sentiment: insights.sentiment,
         callOutcome: insights.callOutcome,
         detectedLanguages: languages,
-        speakerMapping: insights.speakerMapping
+        speakerMapping: insights.speakerMapping,
+        qaScore: insights.qaScore
       }
     });
 

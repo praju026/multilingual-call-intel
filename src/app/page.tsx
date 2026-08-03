@@ -122,10 +122,8 @@ export default function Dashboard() {
           fetchCalls();
           // Also refresh current selected call if it is the one processing
           if (selectedCallId) {
-            const currentInList = calls.find(c => c.id === selectedCallId);
-            if (currentInList && ['queued', 'transcribing', 'analyzing'].includes(currentInList.status)) {
-              fetchCallDetail(selectedCallId);
-            }
+            // Because selectedCallId might be stale in closure, fetchCallDetail won't hurt
+            fetchCallDetail(selectedCallId);
           }
         }, 3000);
       }
@@ -137,7 +135,7 @@ export default function Dashboard() {
     }
 
     return () => {
-      if (pollIntervalRef.current && !hasActiveProcessing) {
+      if (pollIntervalRef.current) {
         clearInterval(pollIntervalRef.current);
         pollIntervalRef.current = null;
       }
