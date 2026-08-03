@@ -167,6 +167,12 @@ export async function transcribeAudio(filePath: string, language: string = 'auto
 
     console.log('File is ACTIVE. Transcribing...');
 
+    // Map ISO language code to full language name to help Gemini understand the target script
+    const langMap: Record<string, string> = {
+      'en': 'English', 'hi': 'Hindi', 'ta': 'Tamil', 'te': 'Telugu', 'ml': 'Malayalam', 'kn': 'Kannada'
+    };
+    const fullLangName = (language && language !== 'auto') ? (langMap[language] || language) : null;
+
     const responseSchema = {
       type: 'OBJECT',
       properties: {
@@ -183,7 +189,7 @@ export async function transcribeAudio(filePath: string, language: string = 'auto
               speaker: { type: 'STRING', description: 'Speaker identifier, e.g. Speaker A, Speaker B' },
               startTime: { type: 'STRING', description: 'Start time of utterance in MM:SS format' },
               endTime: { type: 'STRING', description: 'End time of utterance in MM:SS format' },
-              text: { type: 'STRING', description: 'Transcribed text of the utterance' },
+              text: { type: 'STRING', description: 'Transcribed text of the utterance in the native script of the spoken language' },
               language: { type: 'STRING', description: 'Language of this specific utterance if code-switching' }
             },
             required: ['speaker', 'startTime', 'endTime', 'text']
@@ -207,17 +213,16 @@ export async function transcribeAudio(filePath: string, language: string = 'auto
                   mimeType: uploadResult.mimeType
                 }
               },
-              `You are an expert audio transcription system. Transcribe the EXACT spoken words verbatim from the audio recording.
-${language && language !== 'auto' ? `\nCRITICAL: The primary language spoken in this audio is "${language}". You MUST transcribe strictly in this language when appropriate.` : ''}
+              `You are an expert audio transcription system. Transcribe the EXACT spoken words verbatim from the audio recording in their NATIVE script.
+${fullLangName ? `\nCRITICAL: The primary language spoken in this audio is "${fullLangName}". You MUST transcribe strictly in the native ${fullLangName} script when they speak ${fullLangName}.` : ''}
 CRITICAL RULES:
-1. NEVER translate the speech. Transcribe strictly in the exact language actually spoken.
-2. If the speakers speak purely in English (even with an Indian or regional accent), transcribe the text strictly in English.
-3. DO NOT transliterate English words into Devanagari (Hindi) or regional scripts. If a word is English, write it in the English alphabet (e.g., write "Hello", NOT "हेलो", write "Speaking", NOT "स्पीकिंग").
-4. Names of people, places, or companies (e.g., "Prajwal", "Bangalore", "Vibri") MUST be written in English alphabet when spoken in an English context.
-5. Only use Hindi, Telugu, Tamil, or regional scripts if the speaker actually speaks those exact regional words (code-switching).
-6. Differentiate speakers clearly (Speaker A, Speaker B, etc.).
-7. Estimate accurate start and end timestamps for each utterance in MM:SS format.
-8. Provide the output strictly matching the provided JSON schema.`
+1. NEVER TRANSLATE. If the speaker speaks ${fullLangName || 'a regional language'}, transcribe it EXACTLY in the ${fullLangName || 'native'} alphabet/script. Do NOT translate it to English.
+2. If the speakers speak purely in English (even with an Indian accent), transcribe the text strictly in English.
+3. If they mix languages (code-switching), use the native script for the regional words and English script for the English words.
+4. Names of people, places, or companies MUST be written in English alphabet when spoken in an English context.
+5. Differentiate speakers clearly (Speaker A, Speaker B, etc.).
+6. Estimate accurate start and end timestamps for each utterance in MM:SS format.
+7. Provide the output strictly matching the provided JSON schema.`
             ],
             config: {
               responseMimeType: 'application/json',
