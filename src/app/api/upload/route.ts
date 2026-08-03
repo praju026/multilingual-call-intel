@@ -4,13 +4,13 @@ import fs from 'fs';
 import { createCall } from '@/lib/db';
 import { processCall } from '@/lib/process';
 import { getUploadsDir, isServerlessEnvironment, uploadAudioFile } from '@/lib/storage';
-import { getAuthenticatedUserId } from '@/lib/auth-helper';
+import { getAuthSession } from '@/lib/auth-helper';
 
 export const dynamic = 'force-dynamic';
 export const maxDuration = 60; // Vercel hobby max limit
 export async function POST(request: Request) {
   try {
-    const userId = await getAuthenticatedUserId();
+    const { userId, orgId } = await getAuthSession();
     const formData = await request.formData();
     const file = formData.get('file') as File | null;
     const chunkIndexStr = formData.get('chunkIndex') as string | null;
@@ -82,6 +82,7 @@ export async function POST(request: Request) {
         status: 'queued',
         createdAt: new Date().toISOString(),
         userId,
+        orgId,
         audioUrl,
         isCloud,
         language: languageParam || 'auto',
@@ -117,6 +118,7 @@ export async function POST(request: Request) {
       status: 'queued',
       createdAt: new Date().toISOString(),
       userId,
+      orgId,
       audioUrl,
       isCloud,
       language: languageParam || 'auto',

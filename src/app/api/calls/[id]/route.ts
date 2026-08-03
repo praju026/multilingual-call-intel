@@ -1,7 +1,7 @@
 import { NextResponse } from 'next/server';
 import { getCallById, deleteCall } from '@/lib/db';
 import { deleteAudioFile } from '@/lib/storage';
-import { getAuthenticatedUserId } from '@/lib/auth-helper';
+import { getAuthSession } from '@/lib/auth-helper';
 
 export const dynamic = 'force-dynamic';
 
@@ -12,8 +12,8 @@ export async function GET(
   try {
     const params = await props.params;
     const id = params.id;
-    const userId = await getAuthenticatedUserId();
-    const call = await getCallById(id, userId);
+    const { userId, orgId } = await getAuthSession();
+    const call = await getCallById(id, userId, orgId);
 
     if (!call) {
       return NextResponse.json({ error: 'Call not found.' }, { status: 404 });
@@ -33,8 +33,8 @@ export async function DELETE(
   try {
     const params = await props.params;
     const id = params.id;
-    const userId = await getAuthenticatedUserId();
-    const call = await getCallById(id, userId);
+    const { userId, orgId } = await getAuthSession();
+    const call = await getCallById(id, userId, orgId);
 
     if (!call) {
       return NextResponse.json({ error: 'Call not found or unauthorized.' }, { status: 404 });

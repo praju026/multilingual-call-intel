@@ -25,6 +25,8 @@ import {
 
 import { CallRecord, TranscriptTurn, ActionItem } from '@/lib/db';
 import AuthButtons from '@/components/AuthButtons';
+import { OrganizationSwitcher } from '@clerk/nextjs';
+import { ShieldCheck } from 'lucide-react';
 
 export default function Dashboard() {
   const [calls, setCalls] = useState<CallRecord[]>([]);
@@ -35,7 +37,7 @@ export default function Dashboard() {
   const [uploadError, setUploadError] = useState<string | null>(null);
   const [isDragging, setIsDragging] = useState(false);
   const [selectedUploadLanguage, setSelectedUploadLanguage] = useState('auto');
-  const [activeTab, setActiveTab] = useState<'transcript' | 'summary' | 'actionItems' | 'sentiment' | 'outcome'>('transcript');
+  const [activeTab, setActiveTab] = useState<'transcript' | 'qaScore' | 'summary' | 'actionItems' | 'sentiment' | 'outcome'>('transcript');
   
   const [callSearch, setCallSearch] = useState('');
   const [transcriptSearch, setTranscriptSearch] = useState('');
@@ -481,6 +483,9 @@ export default function Dashboard() {
           <div className="badge badge-info" style={{ gap: '0.35rem', padding: '0.5rem 0.75rem' }}>
             <Languages size={14} /> Supported: EN | HI | TE | TA
           </div>
+          <OrganizationSwitcher 
+            appearance={{ elements: { rootBox: { background: 'rgba(255,255,255,0.05)', borderRadius: '8px', padding: '0.2rem' } } }}
+          />
           <AuthButtons />
         </div>
       </header>
@@ -1046,7 +1051,7 @@ export default function Dashboard() {
                     padding: '0.25rem 0.25rem 0 0.25rem',
                     borderRadius: 'var(--radius-sm)'
                   }}>
-                    {(['transcript', 'summary', 'actionItems', 'sentiment', 'outcome'] as const).map(tab => (
+                    {(['transcript', 'qaScore', 'summary', 'actionItems', 'sentiment', 'outcome'] as const).map(tab => (
                       <button
                         key={tab}
                         onClick={() => setActiveTab(tab)}
@@ -1067,11 +1072,12 @@ export default function Dashboard() {
                         }}
                       >
                         {tab === 'transcript' && <FileText size={14} />}
+                        {tab === 'qaScore' && <ShieldCheck size={14} />}
                         {tab === 'summary' && <Sparkles size={14} />}
                         {tab === 'actionItems' && <CheckSquare size={14} />}
                         {tab === 'sentiment' && <Target size={14} />}
                         {tab === 'outcome' && <OutcomeIcon size={14} />}
-                        {tab === 'actionItems' ? 'Action Items' : tab}
+                        {tab === 'actionItems' ? 'Action Items' : tab === 'qaScore' ? 'QA Score' : tab}
                       </button>
                     ))}
                   </div>
@@ -1205,6 +1211,57 @@ export default function Dashboard() {
                             })
                           )}
                         </div>
+                      </div>
+                    )}
+                    {/* End Transcript Render */}
+
+                    {activeTab === 'qaScore' && (
+                      <div className="markdown-content" style={{ padding: '0.5rem 0' }}>
+                        {selectedCall.insights?.qaScore ? (
+                          <div style={{ display: 'flex', flexDirection: 'column', gap: '1.5rem' }}>
+                            <div style={{ display: 'flex', alignItems: 'center', gap: '1.5rem', padding: '1.5rem', background: 'rgba(255,255,255,0.02)', borderRadius: '12px', border: '1px solid var(--border-light)' }}>
+                              <div style={{ 
+                                width: '80px', height: '80px', borderRadius: '50%', display: 'flex', alignItems: 'center', justifyContent: 'center',
+                                background: selectedCall.insights.qaScore.overallScore >= 80 ? 'rgba(16, 185, 129, 0.2)' : selectedCall.insights.qaScore.overallScore >= 60 ? 'rgba(245, 158, 11, 0.2)' : 'rgba(239, 68, 68, 0.2)',
+                                color: selectedCall.insights.qaScore.overallScore >= 80 ? 'var(--success)' : selectedCall.insights.qaScore.overallScore >= 60 ? 'var(--warning)' : 'var(--danger)',
+                                fontSize: '1.75rem', fontWeight: 'bold', border: `2px solid ${selectedCall.insights.qaScore.overallScore >= 80 ? 'var(--success)' : selectedCall.insights.qaScore.overallScore >= 60 ? 'var(--warning)' : 'var(--danger)'}`
+                              }}>
+                                {selectedCall.insights.qaScore.overallScore}
+                              </div>
+                              <div>
+                                <h3 style={{ fontSize: '1.25rem', marginBottom: '0.5rem' }}>Agent Performance Score</h3>
+                                <div style={{ display: 'flex', flexDirection: 'column', gap: '0.25rem' }}>
+                                  {selectedCall.insights.qaScore.criteria.map((c, i) => (
+                                    <div key={i} style={{ display: 'flex', justifyContent: 'space-between', width: '300px', fontSize: '0.85rem' }}>
+                                      <span style={{ color: 'var(--text-secondary)' }}>{c.name}</span>
+                                      <span style={{ fontWeight: 600 }}>{c.score} / {c.maxScore}</span>
+                                    </div>
+                                  ))}
+                                </div>
+                              </div>
+                            </div>
+                            
+                            <div>
+                              <h4 style={{ fontSize: '1rem', color: 'var(--text-primary)', marginBottom: '0.75rem', display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+                                <Target size={16} style={{ color: 'var(--accent-indigo)' }}/> Timestamped Evidence
+                              </h4>
+                              <ul style={{ display: 'flex', flexDirection: 'column', gap: '0.75rem', paddingLeft: '1.5rem', color: 'var(--text-secondary)' }}>
+                                {selectedCall.insights.qaScore.evidence.map((ev, i) => (
+                                  <li key={i} style={{ lineHeight: '1.5' }}>{ev}</li>
+                                ))}
+                              </ul>
+                            </div>
+                            
+                            <div style={{ background: 'rgba(99, 102, 241, 0.1)', padding: '1rem', borderRadius: '8px', borderLeft: '4px solid var(--accent-indigo)' }}>
+                              <h4 style={{ fontSize: '0.9rem', color: 'var(--accent-indigo)', marginBottom: '0.25rem', fontWeight: 600 }}>Coaching Recommendation</h4>
+                              <p style={{ color: 'var(--text-primary)', fontSize: '0.95rem' }}>{selectedCall.insights.qaScore.coachingRecommendation}</p>
+                            </div>
+                          </div>
+                        ) : (
+                          <div style={{ padding: '2rem', textAlign: 'center', color: 'var(--text-muted)' }}>
+                            No QA Score available for this call. Try reprocessing it.
+                          </div>
+                        )}
                       </div>
                     )}
 

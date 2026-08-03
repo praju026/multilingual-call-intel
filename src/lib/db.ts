@@ -28,6 +28,12 @@ export interface CallInsights {
     agent: string;
     customer: string;
   };
+  qaScore?: {
+    overallScore: number;
+    criteria: { name: string; score: number; maxScore: number }[];
+    evidence: string[];
+    coachingRecommendation: string;
+  };
 }
 
 export interface CallRecord {
@@ -44,6 +50,7 @@ export interface CallRecord {
   audioUrl?: string; // Vercel Blob URL or local filename
   isCloud?: boolean;
   language?: string; // e.g., 'en', 'hi', 'te', 'ta', 'auto'
+  orgId?: string | null; // Clerk organization ID for B2B multi-tenancy
 }
 
 export function hasCloudDatabase(): boolean {
@@ -61,6 +68,7 @@ async function ensurePostgresTable() {
         data JSONB NOT NULL,
         created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
       );
+      ALTER TABLE calls ADD COLUMN IF NOT EXISTS org_id VARCHAR(255);
     `;
   } catch (err: any) {
     console.warn('[AuraIntel DB] Postgres table check failed:', err.message);
@@ -76,15 +84,22 @@ function getDbFile(): string {
   return dbFile;
 }
 
-export async function getCalls(userId?: string): Promise<CallRecord[]> {
+export async function getCalls(userId?: string, orgId?: string | null): Promise<CallRecord[]> {
   const targetUser = userId || 'guest';
   if (hasCloudDatabase()) {
     try {
       await ensurePostgresTable();
       const { sql } = await import('@vercel/postgres');
-      const { rows } = await sql`
-        SELECT data FROM calls WHERE user_id = ${targetUser} ORDER BY created_at DESC;
-      `;
+      let rows;
+      if (orgId) {
+        ({ rows } = await sql`
+          SELECT data FROM calls WHERE org_id = ${orgId} ORDER BY created_at DESC;
+        `);
+      } else {
+        ({ rows } = await sql`
+          SELECT data FROM calls WHERE user_id = ${targetUser} AND (org_id IS NULL OR org_id = '') ORDER BY created_at DESC;
+        `);
+      }
       return rows.map(r => r.data as CallRecord);
     } catch (err: any) {
       console.warn('[AuraIntel DB] Postgres getCalls failed, falling back to local JSON:', err.message);
@@ -97,21 +112,26 @@ export async function getCalls(userId?: string): Promise<CallRecord[]> {
     const data = fs.readFileSync(dbFile, 'utf-8');
     const parsed = JSON.parse(data);
     const allCalls: CallRecord[] = parsed.calls || [];
-    return allCalls.filter(c => (c.userId || 'guest') === targetUser);
+    return allCalls.filter(c => {
+      if (orgId) return c.orgId === orgId;
+      return (c.userId || 'guest') === targetUser && !c.orgId;
+    });
   } catch (error) {
     console.error('Error reading JSON DB:', error);
     return [];
   }
 }
 
-export async function getCallById(id: string, userId?: string): Promise<CallRecord | undefined> {
+export async function getCallById(id: string, userId?: string, orgId?: string | null): Promise<CallRecord | undefined> {
   if (hasCloudDatabase()) {
     try {
       await ensurePostgresTable();
       const { sql } = await import('@vercel/postgres');
       let rows;
-      if (userId) {
-        ({ rows } = await sql`SELECT data FROM calls WHERE id = ${id} AND user_id = ${userId};`);
+      if (orgId) {
+        ({ rows } = await sql`SELECT data FROM calls WHERE id = ${id} AND org_id = ${orgId};`);
+      } else if (userId) {
+        ({ rows } = await sql`SELECT data FROM calls WHERE id = ${id} AND user_id = ${userId} AND (org_id IS NULL OR org_id = '');`);
       } else {
         ({ rows } = await sql`SELECT data FROM calls WHERE id = ${id};`);
       }
@@ -129,7 +149,12 @@ export async function getCallById(id: string, userId?: string): Promise<CallReco
     const parsed = JSON.parse(data);
     const allCalls: CallRecord[] = parsed.calls || [];
     const found = allCalls.find(call => call.id === id);
-    if (found && userId && (found.userId || 'guest') !== userId) return undefined;
+    if (!found) return undefined;
+    if (orgId) {
+      if (found.orgId !== orgId) return undefined;
+    } else if (userId) {
+      if ((found.userId || 'guest') !== userId || found.orgId) return undefined;
+    }
     return found;
   } catch (error) {
     return undefined;
@@ -143,9 +168,9 @@ export async function createCall(call: CallRecord): Promise<CallRecord> {
       await ensurePostgresTable();
       const { sql } = await import('@vercel/postgres');
       await sql`
-        INSERT INTO calls (id, user_id, data, created_at)
-        VALUES (${record.id}, ${record.userId}, ${JSON.stringify(record)}, NOW())
-        ON CONFLICT (id) DO UPDATE SET data = EXCLUDED.data;
+        INSERT INTO calls (id, user_id, org_id, data, created_at)
+        VALUES (${record.id}, ${record.userId}, ${record.orgId || null}, ${JSON.stringify(record)}, NOW())
+        ON CONFLICT (id) DO UPDATE SET data = EXCLUDED.data, org_id = EXCLUDED.org_id;
       `;
       return record;
     } catch (err: any) {
@@ -196,14 +221,16 @@ export async function updateCall(id: string, updates: Partial<CallRecord>): Prom
   return updatedCall;
 }
 
-export async function deleteCall(id: string, userId?: string): Promise<boolean> {
+export async function deleteCall(id: string, userId?: string, orgId?: string | null): Promise<boolean> {
   if (hasCloudDatabase()) {
     try {
       await ensurePostgresTable();
       const { sql } = await import('@vercel/postgres');
       let result;
-      if (userId) {
-        result = await sql`DELETE FROM calls WHERE id = ${id} AND user_id = ${userId};`;
+      if (orgId) {
+        result = await sql`DELETE FROM calls WHERE id = ${id} AND org_id = ${orgId};`;
+      } else if (userId) {
+        result = await sql`DELETE FROM calls WHERE id = ${id} AND user_id = ${userId} AND (org_id IS NULL OR org_id = '');`;
       } else {
         result = await sql`DELETE FROM calls WHERE id = ${id};`;
       }
@@ -220,7 +247,8 @@ export async function deleteCall(id: string, userId?: string): Promise<boolean> 
   } catch {}
   const filtered = calls.filter(call => {
     if (call.id !== id) return true;
-    if (userId && (call.userId || 'guest') !== userId) return true;
+    if (orgId) return call.orgId !== orgId;
+    if (userId) return (call.userId || 'guest') !== userId || !!call.orgId;
     return false;
   });
   if (filtered.length === calls.length) {

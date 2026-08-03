@@ -42,6 +42,20 @@ export async function generateCallInsights(
       speakerMapping: {
         agent: "Speaker A",
         customer: "Speaker B"
+      },
+      qaScore: {
+        overallScore: 78,
+        criteria: [
+          { name: "Politeness & Empathy", score: 18, maxScore: 20 },
+          { name: "Script Adherence", score: 16, maxScore: 20 },
+          { name: "Objection Handling", score: 20, maxScore: 30 },
+          { name: "Resolution", score: 24, maxScore: 30 }
+        ],
+        evidence: [
+          "[01:15 - 01:20] - Agent politely verified account details.",
+          "[03:42 - 03:50] - Agent failed to explain alternative solutions clearly when customer objected to timeline."
+        ],
+        coachingRecommendation: "Practice providing clear alternative timelines when a customer expresses frustration over a delay."
       }
     };
   }
@@ -54,7 +68,7 @@ export async function generateCallInsights(
     .join('\n');
 
   const prompt = `
-You are an expert Call Intelligence AI. Your task is to analyze the following call transcript and generate structured insights.
+You are an expert Call Intelligence AI and Quality Assurance Manager. Your task is to analyze the following customer support/sales call transcript and generate structured insights and an objective Agent QA Score.
 
 First, read the transcript and identify:
 1. Who is the "Agent" (representing the company, sales, support) and who is the "Customer" (the client calling in).
@@ -65,6 +79,19 @@ First, read the transcript and identify:
 6. Sentiment of the call (positive, neutral, negative, mixed).
 7. Outcome classification (e.g. closed sale, follow-up scheduled, problem resolved, complaint unresolved, inquiry).
 8. Detected languages, including code-switching (e.g. English, Hindi, Telugu, Tamil).
+
+QUALITY ASSURANCE GRADING:
+Act as a strict QA Analyst. Grade the Agent out of 100 on the following criteria:
+- Politeness & Empathy (Max 20)
+- Script Adherence & Professionalism (Max 20)
+- Objection Handling (Max 30)
+- Resolution & Product Knowledge (Max 30)
+
+Provide a detailed QA Score object with:
+- overallScore: The sum of the sub-scores (0-100).
+- criteria: Array of the 4 criteria listed above with their scores.
+- evidence: Extract 2-3 specific quotes from the transcript (including timestamps) that justify the score (e.g., "[01:23 - 01:28] - Agent interrupted the customer.").
+- coachingRecommendation: A one-sentence actionable coaching tip for the manager to give the agent.
 
 Transcript:
 ${formattedTranscript}
@@ -121,6 +148,31 @@ Please return the results in the exact JSON schema requested.
           customer: { type: 'STRING', description: 'The speaker label representing the customer (e.g., Speaker B).' }
         },
         required: ['agent', 'customer']
+      },
+      qaScore: {
+        type: 'OBJECT',
+        properties: {
+          overallScore: { type: 'INTEGER', description: 'Total score out of 100.' },
+          criteria: {
+            type: 'ARRAY',
+            items: {
+              type: 'OBJECT',
+              properties: {
+                name: { type: 'STRING' },
+                score: { type: 'INTEGER' },
+                maxScore: { type: 'INTEGER' }
+              },
+              required: ['name', 'score', 'maxScore']
+            }
+          },
+          evidence: {
+            type: 'ARRAY',
+            items: { type: 'STRING' },
+            description: 'Timestamped quotes from the transcript justifying the score.'
+          },
+          coachingRecommendation: { type: 'STRING', description: 'One-sentence coaching tip.' }
+        },
+        required: ['overallScore', 'criteria', 'evidence', 'coachingRecommendation']
       }
     },
     required: [
@@ -131,7 +183,8 @@ Please return the results in the exact JSON schema requested.
       'sentiment',
       'callOutcome',
       'detectedLanguages',
-      'speakerMapping'
+      'speakerMapping',
+      'qaScore'
     ]
   };
 

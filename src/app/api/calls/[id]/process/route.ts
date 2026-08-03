@@ -1,7 +1,7 @@
 import { NextResponse, after } from 'next/server';
 import { getCallById, updateCall } from '@/lib/db';
 import { processCall } from '@/lib/process';
-import { getAuthenticatedUserId } from '@/lib/auth-helper';
+import { getAuthSession } from '@/lib/auth-helper';
 import { isServerlessEnvironment } from '@/lib/storage';
 
 export const dynamic = 'force-dynamic';
@@ -14,8 +14,8 @@ export async function POST(
   try {
     const params = await props.params;
     const id = params.id;
-    const userId = await getAuthenticatedUserId();
-    const call = await getCallById(id, userId);
+    const { userId, orgId } = await getAuthSession();
+    const call = await getCallById(id, userId, orgId);
 
     if (!call) {
       return NextResponse.json({ error: 'Call not found or unauthorized.' }, { status: 404 });
