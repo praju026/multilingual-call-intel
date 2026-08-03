@@ -88,16 +88,11 @@ export async function POST(request: Request) {
         language: languageParam || 'auto',
       });
 
-      if (isServerlessEnvironment()) {
-        after(() => {
-          processCall(id).catch(err => {
-            console.error(`Processing for call ${id} failed:`, err);
-          });
-        });
-      } else {
-        processCall(id).catch(err => {
-          console.error(`Background processing for call ${id} failed:`, err);
-        });
+      // Run processCall synchronously since Webhooks make it return immediately
+      try {
+        await processCall(id);
+      } catch (err) {
+        console.error(`Processing for call ${id} failed:`, err);
       }
 
       return NextResponse.json({ success: true, call: newCall });
@@ -124,16 +119,11 @@ export async function POST(request: Request) {
       language: languageParam || 'auto',
     });
 
-    if (isServerlessEnvironment()) {
-      after(() => {
-        processCall(id).catch(err => {
-          console.error(`Processing for call ${id} failed:`, err);
-        });
-      });
-    } else {
-      processCall(id).catch(err => {
-        console.error(`Background processing for call ${id} failed:`, err);
-      });
+    // Run processCall synchronously since Webhooks make it return immediately
+    try {
+      await processCall(id);
+    } catch (err) {
+      console.error(`Processing for call ${id} failed:`, err);
     }
 
     return NextResponse.json({ success: true, call: newCall });

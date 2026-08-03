@@ -39,17 +39,11 @@ export async function POST(
       ...(language && { language })
     });
 
-    // Start background processing
-    if (isServerlessEnvironment()) {
-      after(() => {
-        processCall(id).catch(err => {
-          console.error(`Processing for call ${id} failed:`, err);
-        });
-      });
-    } else {
-      processCall(id).catch(err => {
-        console.error(`Background retried processing for call ${id} failed:`, err);
-      });
+    // Run processCall synchronously since Webhooks make it return immediately
+    try {
+      await processCall(id);
+    } catch (err) {
+      console.error(`Processing for call ${id} failed:`, err);
     }
 
     return NextResponse.json({ success: true, message: 'Processing triggered.' });

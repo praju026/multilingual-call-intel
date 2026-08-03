@@ -44,6 +44,7 @@ export default function Dashboard() {
   const [languageFilter, setLanguageFilter] = useState('');
   const [speakerFilter, setSpeakerFilter] = useState('');
   const [reprocessLanguage, setReprocessLanguage] = useState('');
+  const [callToDelete, setCallToDelete] = useState<string | null>(null);
 
   // Audio Playback
   const audioRef = useRef<HTMLAudioElement | null>(null);
@@ -281,7 +282,13 @@ export default function Dashboard() {
   // Delete Call Handler
   const handleDeleteCall = async (id: string, e: React.MouseEvent) => {
     e.stopPropagation();
-    if (!confirm('Are you sure you want to delete this call record?')) return;
+    setCallToDelete(id);
+  };
+
+  const confirmDeleteCall = async () => {
+    if (!callToDelete) return;
+    const id = callToDelete;
+    setCallToDelete(null);
 
     try {
       const res = await fetch(`/api/calls/${id}`, {
@@ -1419,6 +1426,35 @@ export default function Dashboard() {
           )}
         </main>
       </div>
+
+      {/* Delete Confirmation Modal */}
+      {callToDelete && (
+        <div className="modal-overlay" onClick={() => setCallToDelete(null)}>
+          <div className="modal-content" onClick={e => e.stopPropagation()}>
+            <div className="modal-header">
+              <div className="modal-icon-wrapper" style={{ background: 'rgba(239, 68, 68, 0.1)', color: '#ef4444' }}>
+                <Trash2 size={24} />
+              </div>
+              <h3 style={{ margin: 0, fontSize: '1.25rem' }}>Delete Recording</h3>
+            </div>
+            <div className="modal-body" style={{ margin: '1.5rem 0', color: 'var(--text-secondary)' }}>
+              Are you sure you want to delete this call record? This action cannot be undone and will permanently remove the audio file and all associated AI insights.
+            </div>
+            <div className="modal-actions" style={{ display: 'flex', gap: '1rem', justifyContent: 'flex-end' }}>
+              <button className="btn btn-secondary" onClick={() => setCallToDelete(null)}>
+                Cancel
+              </button>
+              <button 
+                className="btn btn-primary" 
+                style={{ background: '#ef4444', color: 'white', border: 'none' }}
+                onClick={confirmDeleteCall}
+              >
+                Delete Record
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

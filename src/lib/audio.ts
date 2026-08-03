@@ -32,7 +32,13 @@ export interface TranscriptionResult {
   duration: number; // in seconds
 }
 
-export async function transcribeAudio(filePath: string, language: string = 'auto'): Promise<TranscriptionResult> {
+export interface TranscriptionResponse {
+  type: 'sync' | 'webhook';
+  result?: TranscriptionResult;
+  transcriptId?: string;
+}
+
+export async function transcribeAudio(filePath: string, language: string = 'auto', webhookUrl?: string): Promise<TranscriptionResponse> {
   const assemblyKey = process.env.ASSEMBLYAI_API_KEY;
   const geminiKey = process.env.GEMINI_API_KEY;
 
@@ -41,23 +47,25 @@ export async function transcribeAudio(filePath: string, language: string = 'auto
     await new Promise(resolve => setTimeout(resolve, 3000)); // Simulate processing latency
     
     return {
-      transcript: [
-        { speaker: "Speaker A", startTime: "00:00", endTime: "00:06", text: "Thank you for calling Aura Support. Mera naam Rahul hai. How can I help you today?", language: "en" },
-        { speaker: "Speaker B", startTime: "00:07", endTime: "00:15", text: "Hi Rahul. Maine last week subscription plan change kiya tha, but mujhe double charge ho gaya hai. Can you check please?", language: "hi" },
-        { speaker: "Speaker A", startTime: "00:16", endTime: "00:21", text: "Sure, let me check the account details. Kya aap mujhe apna customer ID batayenge?", language: "hi" },
-        { speaker: "Speaker B", startTime: "00:22", endTime: "00:28", text: "Yes, it is user-9482. Main bahut preshan hoon kyunki payment double deduct ho gayi.", language: "hi" },
-        { speaker: "Speaker A", startTime: "00:29", endTime: "00:36", text: "Aap bilkul chinta mat kijiye. I can see the transaction duplicate charge. Hum ise immediate refund process kar rahe hain.", language: "hi" },
-        { speaker: "Speaker B", startTime: "00:37", endTime: "00:41", text: "Thank you, kitna time lagega refund aane mein?", language: "hi" },
-        { speaker: "Speaker A", startTime: "00:42", endTime: "00:47", text: "Refund will be credited to your account in 3 to 5 business days. Aur koi sahayata?", language: "en" },
-        { speaker: "Speaker B", startTime: "00:48", endTime: "00:52", text: "Nahi, bas yahi issue tha. Dhanyawad, Rahul!", language: "hi" },
-        { speaker: "Speaker A", startTime: "00:53", endTime: "00:58", text: "Thank you for calling us. Have a great day ahead!", language: "en" }
-      ],
-      detectedLanguages: ["en", "hi"],
-      duration: 58
+      type: 'sync',
+      result: {
+        transcript: [
+          { speaker: "Speaker A", startTime: "00:00", endTime: "00:06", text: "Thank you for calling Aura Support. Mera naam Rahul hai. How can I help you today?", language: "en" },
+          { speaker: "Speaker B", startTime: "00:07", endTime: "00:15", text: "Hi Rahul. Maine last week subscription plan change kiya tha, but mujhe double charge ho gaya hai. Can you check please?", language: "hi" },
+          { speaker: "Speaker A", startTime: "00:16", endTime: "00:21", text: "Sure, let me check the account details. Kya aap mujhe apna customer ID batayenge?", language: "hi" },
+          { speaker: "Speaker B", startTime: "00:22", endTime: "00:28", text: "Yes, it is user-9482. Main bahut preshan hoon kyunki payment double deduct ho gayi.", language: "hi" },
+          { speaker: "Speaker A", startTime: "00:29", endTime: "00:36", text: "Aap bilkul chinta mat kijiye. I can see the transaction duplicate charge. Hum ise immediate refund process kar rahe hain.", language: "hi" },
+          { speaker: "Speaker B", startTime: "00:37", endTime: "00:41", text: "Thank you, kitna time lagega refund aane mein?", language: "hi" },
+          { speaker: "Speaker A", startTime: "00:42", endTime: "00:47", text: "Refund will be credited to your account in 3 to 5 business days. Aur koi sahayata?", language: "en" },
+          { speaker: "Speaker B", startTime: "00:48", endTime: "00:52", text: "Nahi, bas yahi issue tha. Dhanyawad, Rahul!", language: "hi" },
+          { speaker: "Speaker A", startTime: "00:53", endTime: "00:58", text: "Thank you for calling us. Have a great day ahead!", language: "en" }
+        ],
+        detectedLanguages: ["en", "hi"],
+        duration: 58
+      }
     };
   }
 
-  // Determine file duration (approximation fallback if needed)
   let fileDurationSec = 0;
 
   if (assemblyKey) {
@@ -76,34 +84,44 @@ export async function transcribeAudio(filePath: string, language: string = 'auto
         transcribeParams.language_detection = true;
       }
 
-      const transcript = await client.transcripts.transcribe(transcribeParams);
+      if (webhookUrl) {
+        transcribeParams.webhook_url = webhookUrl;
+        console.log(`Submitting to AssemblyAI with webhook: ${webhookUrl}`);
+        const transcript = await client.transcripts.submit(transcribeParams);
+        return { type: 'webhook', transcriptId: transcript.id };
+      } else {
+        const transcript = await client.transcripts.transcribe(transcribeParams);
 
-      if (transcript.status === 'error') {
-        throw new Error(`AssemblyAI Error: ${transcript.error}`);
-      }
-
-      fileDurationSec = transcript.audio_duration ? Math.round(transcript.audio_duration) : 0;
-
-      const turns: TranscriptTurn[] = [];
-      if (transcript.utterances) {
-        for (const utterance of transcript.utterances) {
-          turns.push({
-            speaker: `Speaker ${utterance.speaker.toUpperCase()}`,
-            startTime: formatMsToMmSs(utterance.start),
-            endTime: formatMsToMmSs(utterance.end),
-            text: utterance.text,
-            language: transcript.language_code || 'en'
-          });
+        if (transcript.status === 'error') {
+          throw new Error(`AssemblyAI Error: ${transcript.error}`);
         }
+
+        fileDurationSec = transcript.audio_duration ? Math.round(transcript.audio_duration) : 0;
+
+        const turns: TranscriptTurn[] = [];
+        if (transcript.utterances) {
+          for (const utterance of transcript.utterances) {
+            turns.push({
+              speaker: `Speaker ${utterance.speaker.toUpperCase()}`,
+              startTime: formatMsToMmSs(utterance.start),
+              endTime: formatMsToMmSs(utterance.end),
+              text: utterance.text,
+              language: transcript.language_code || 'en'
+            });
+          }
+        }
+
+        const detectedLanguages = transcript.language_code ? [transcript.language_code] : ['en'];
+
+        return {
+          type: 'sync',
+          result: {
+            transcript: turns,
+            detectedLanguages,
+            duration: fileDurationSec
+          }
+        };
       }
-
-      const detectedLanguages = transcript.language_code ? [transcript.language_code] : ['en'];
-
-      return {
-        transcript: turns,
-        detectedLanguages,
-        duration: fileDurationSec
-      };
     } catch (err: any) {
       console.warn(`[AuraIntel STT] AssemblyAI transcription failed (${err.message}). Falling back to Gemini API...`);
     }
@@ -232,9 +250,12 @@ CRITICAL RULES:
       }
 
       return {
-        transcript: result.turns || [],
-        detectedLanguages: result.detectedLanguages || [],
-        duration: fileDurationSec
+        type: 'sync',
+        result: {
+          transcript: result.turns || [],
+          detectedLanguages: result.detectedLanguages || [],
+          duration: fileDurationSec
+        }
       };
     } finally {
       // Cleanup the uploaded file from Gemini storage to be clean
