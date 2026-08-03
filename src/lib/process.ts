@@ -85,8 +85,12 @@ export async function processCall(id: string): Promise<void> {
     await updateCall(id, { status: 'transcribing' });
     console.log(`[Processing Call ${id}] Starting speech-to-text...`);
     
-    // Construct Webhook URL
-    const host = process.env.NEXT_PUBLIC_APP_URL || (process.env.VERCEL_PROJECT_PRODUCTION_URL ? `https://${process.env.VERCEL_PROJECT_PRODUCTION_URL}` : (process.env.VERCEL_URL ? `https://${process.env.VERCEL_URL}` : 'http://localhost:3000'));
+    // Construct Webhook URL using Vercel environment variables first to avoid misconfigured localhost URLs
+    const host = process.env.VERCEL_PROJECT_PRODUCTION_URL 
+      ? `https://${process.env.VERCEL_PROJECT_PRODUCTION_URL}` 
+      : (process.env.VERCEL_URL 
+          ? `https://${process.env.VERCEL_URL}` 
+          : (process.env.NEXT_PUBLIC_APP_URL || 'http://localhost:3000'));
     const webhookUrl = `${host}/api/webhooks/assemblyai?callId=${id}`;
 
     const transcriptionResponse = await transcribeAudio(filePath, call.language, webhookUrl);
