@@ -68,6 +68,8 @@ async function ensurePostgresTable() {
         data JSONB NOT NULL,
         created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
       );
+    `;
+    await sql`
       ALTER TABLE calls ADD COLUMN IF NOT EXISTS org_id VARCHAR(255);
     `;
   } catch (err: any) {
