@@ -153,7 +153,7 @@ export async function transcribeAudio(
       throw new Error(`Audio file not found locally or in cloud for Gemini fallback.`);
     }
 
-    const fileBlob = new Blob([fileBuffer], { type: mimeType });
+    const fileBlob = new Blob([fileBuffer as any], { type: mimeType });
     const uploadResult = await ai.files.upload({
       file: fileBlob,
       config: {
