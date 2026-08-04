@@ -59,21 +59,9 @@ export async function processCall(id: string): Promise<void> {
   const uploadDir = getUploadsDir();
   const filePath = path.join(uploadDir, call.filename);
 
-  let downloadedTemp = false;
-  if (!fs.existsSync(filePath) && call.audioUrl && (call.audioUrl.startsWith('http://') || call.audioUrl.startsWith('https://'))) {
-    try {
-      console.log(`[Processing Call ${id}] Downloading cloud audio from ${call.audioUrl}...`);
-      const response = await fetch(call.audioUrl);
-      if (!response.ok) throw new Error(`Failed to download audio: ${response.statusText}`);
-      const arrayBuf = await response.arrayBuffer();
-      fs.writeFileSync(filePath, Buffer.from(arrayBuf));
-      downloadedTemp = true;
-    } catch (dlErr: any) {
-      console.error(`[Processing Call ${id}] Cloud audio download error:`, dlErr);
-    }
-  }
+  const hasCloudUrl = call.audioUrl && (call.audioUrl.startsWith('http://') || call.audioUrl.startsWith('https://'));
 
-  if (!fs.existsSync(filePath)) {
+  if (!fs.existsSync(filePath) && !hasCloudUrl) {
     const errorMsg = `Audio file not found locally or in cloud for ${call.filename}`;
     console.error(errorMsg);
     await updateCall(id, { status: 'failed', error: errorMsg });
@@ -93,16 +81,11 @@ export async function processCall(id: string): Promise<void> {
           : (process.env.NEXT_PUBLIC_APP_URL || 'http://localhost:3000'));
     const webhookUrl = `${host}/api/webhooks/assemblyai?callId=${id}`;
 
-    const transcriptionResponse = await transcribeAudio(filePath, call.language, webhookUrl);
+    const transcriptionResponse = await transcribeAudio(filePath, call.language, webhookUrl, call.audioUrl);
     
-    // Clean up temporary downloaded file
-    if (downloadedTemp && call.isCloud && fs.existsSync(filePath)) {
-      try { fs.unlinkSync(filePath); } catch {}
-    }
-
     if (transcriptionResponse.type === 'webhook') {
-      console.log(`[Processing Call ${id}] Submitted to AssemblyAI Webhook. Transcript ID: ${transcriptionResponse.transcriptId}`);
-      // Return and let the webhook handle the rest!
+      // Background processing continues in the webhook handler
+      console.log(`[Processing Call ${id}] Handed off to webhook.`);
       return;
     }
 

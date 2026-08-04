@@ -38,7 +38,12 @@ export interface TranscriptionResponse {
   transcriptId?: string;
 }
 
-export async function transcribeAudio(filePath: string, language: string = 'auto', webhookUrl?: string): Promise<TranscriptionResponse> {
+export async function transcribeAudio(
+  filePath: string, 
+  language: string = 'auto', 
+  webhookUrl?: string,
+  audioUrl?: string
+): Promise<TranscriptionResponse> {
   const assemblyKey = process.env.ASSEMBLYAI_API_KEY;
   const geminiKey = process.env.GEMINI_API_KEY;
 
@@ -74,7 +79,7 @@ export async function transcribeAudio(filePath: string, language: string = 'auto
       const client = new AssemblyAI({ apiKey: assemblyKey });
       
       const transcribeParams: any = {
-        audio: filePath,
+        audio: (audioUrl && (audioUrl.startsWith('http://') || audioUrl.startsWith('https://'))) ? audioUrl : filePath,
         speaker_labels: true,
       };
 
@@ -135,7 +140,19 @@ export async function transcribeAudio(filePath: string, language: string = 'auto
 
     // Upload using Files API
     console.log(`Uploading ${path.basename(filePath)} to Gemini Files API (${mimeType})...`);
-    const fileBuffer = fs.readFileSync(filePath);
+    
+    let fileBuffer: Buffer;
+    if (fs.existsSync(filePath)) {
+      fileBuffer = fs.readFileSync(filePath);
+    } else if (audioUrl && (audioUrl.startsWith('http://') || audioUrl.startsWith('https://'))) {
+      console.log(`[AuraIntel STT] Downloading audio from cloud for Gemini fallback...`);
+      const response = await fetch(audioUrl);
+      if (!response.ok) throw new Error(`Failed to download audio for Gemini: ${response.statusText}`);
+      fileBuffer = Buffer.from(await response.arrayBuffer());
+    } else {
+      throw new Error(`Audio file not found locally or in cloud for Gemini fallback.`);
+    }
+
     const fileBlob = new Blob([fileBuffer], { type: mimeType });
     const uploadResult = await ai.files.upload({
       file: fileBlob,
