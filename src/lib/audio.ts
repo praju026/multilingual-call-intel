@@ -80,13 +80,8 @@ export async function transcribeAudio(
       
       const transcribeParams: any = {
         speaker_labels: true,
+        audio: (audioUrl && (audioUrl.startsWith('http://') || audioUrl.startsWith('https://'))) ? audioUrl : filePath,
       };
-
-      if (audioUrl && (audioUrl.startsWith('http://') || audioUrl.startsWith('https://'))) {
-        transcribeParams.audio_url = audioUrl;
-      } else {
-        transcribeParams.audio = filePath;
-      }
 
       if (language && language !== 'auto') {
         transcribeParams.language_code = language;
