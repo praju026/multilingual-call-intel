@@ -79,9 +79,14 @@ export async function transcribeAudio(
       const client = new AssemblyAI({ apiKey: assemblyKey });
       
       const transcribeParams: any = {
-        audio: (audioUrl && (audioUrl.startsWith('http://') || audioUrl.startsWith('https://'))) ? audioUrl : filePath,
         speaker_labels: true,
       };
+
+      if (audioUrl && (audioUrl.startsWith('http://') || audioUrl.startsWith('https://'))) {
+        transcribeParams.audio_url = audioUrl;
+      } else {
+        transcribeParams.audio = filePath;
+      }
 
       if (language && language !== 'auto') {
         transcribeParams.language_code = language;
@@ -218,8 +223,8 @@ export async function transcribeAudio(
 
     try {
       let response;
-      let attempts = 0;
-      while (attempts < 3) {
+      let attempts2 = 0;
+      while (attempts2 < 3) {
         try {
           response = await ai.models.generateContent({
             model: 'gemini-2.5-flash',
@@ -235,11 +240,12 @@ ${fullLangName ? `\nCRITICAL: The primary language spoken in this audio is "${fu
 CRITICAL RULES:
 1. NEVER TRANSLATE. If the speaker speaks ${fullLangName || 'a regional language'}, transcribe it EXACTLY in the ${fullLangName || 'native'} alphabet/script. Do NOT translate it to English.
 2. If the speakers speak purely in English (even with an Indian accent), transcribe the text strictly in English.
-3. If they mix languages (code-switching), use the native script for the regional words and English script for the English words.
-4. Names of people, places, or companies MUST be written in English alphabet when spoken in an English context.
-5. Differentiate speakers clearly (Speaker A, Speaker B, etc.).
-6. Estimate accurate start and end timestamps for each utterance in MM:SS format.
-7. Provide the output strictly matching the provided JSON schema.`
+3. DO NOT transliterate English words into Devanagari (Hindi) or regional scripts. If a word is English, write it in the English alphabet (e.g., write "Hello", NOT "हेलो", write "Speaking", NOT "स्पीकिंग").
+4. If they mix languages (code-switching), use the native script for the regional words and English script for the English words.
+5. Names of people, places, or companies MUST be written in English alphabet when spoken in an English context.
+6. Differentiate speakers clearly (Speaker A, Speaker B, etc.).
+7. Estimate accurate start and end timestamps for each utterance in MM:SS format.
+8. Provide the output strictly matching the provided JSON schema.`
             ],
             config: {
               responseMimeType: 'application/json',
@@ -248,10 +254,10 @@ CRITICAL RULES:
           });
           break;
         } catch (err: any) {
-          attempts++;
-          console.warn(`[AuraIntel STT] Gemini API attempt ${attempts} failed: ${err.message}. ${attempts < 3 ? 'Retrying...' : ''}`);
-          if (attempts >= 3) throw err;
-          await new Promise(resolve => setTimeout(resolve, 2000 * attempts));
+          attempts2++;
+          console.warn(`[AuraIntel STT] Gemini API attempt ${attempts2} failed: ${err.message}. ${attempts2 < 3 ? 'Retrying...' : ''}`);
+          if (attempts2 >= 3) throw err;
+          await new Promise(resolve => setTimeout(resolve, 2000 * attempts2));
         }
       }
 
