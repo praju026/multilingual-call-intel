@@ -29,7 +29,7 @@ if (hasClerkKeys) {
   }
 }
 
-export async function middleware(req: NextRequest, evt: any) {
+export default async function proxy(req: NextRequest, evt: any) {
   if (clerkHandler) {
     return clerkHandler(req, evt);
   }
