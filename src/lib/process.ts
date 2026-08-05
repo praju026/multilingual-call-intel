@@ -57,9 +57,10 @@ export async function processCall(id: string): Promise<void> {
   }
 
   const uploadDir = getUploadsDir();
-  const filePath = path.join(uploadDir, call.filename);
-
+  const filePath = path.join(getUploadsDir(), call.filename);
   const hasCloudUrl = call.audioUrl && (call.audioUrl.startsWith('http://') || call.audioUrl.startsWith('https://'));
+  
+  console.log(`[Processing Call ${id}] isCloud: ${call.isCloud}, audioUrl: ${call.audioUrl}, hasCloudUrl: ${hasCloudUrl}`);
 
   if (!fs.existsSync(filePath) && !hasCloudUrl) {
     const errorMsg = `Audio file not found locally or in cloud for ${call.filename}`;

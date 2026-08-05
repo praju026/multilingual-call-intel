@@ -68,7 +68,10 @@ export async function uploadAudioFile(buffer: Buffer, filename: string): Promise
   if (hasCloudBlobStorage()) {
     try {
       const { put } = await import('@vercel/blob');
-      const blob = await put(filename, buffer, { access: 'public' });
+      const blob = await put(filename, buffer, { 
+        access: 'public',
+        token: process.env.BLOB_READ_WRITE_TOKEN 
+      });
       return { url: blob.url, isCloud: true };
     } catch (err: any) {
       console.warn('[AuraIntel Storage] Vercel Blob upload failed, falling back to local filesystem:', err.message);
