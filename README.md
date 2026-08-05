@@ -1,33 +1,37 @@
-# AuraIntel: Multilingual Call Intelligence Platform
+# AuraIntel: AI-Powered B2B Quality Assurance & Team Workspace
 
-AuraIntel is a modern, high-end, responsive web application built with Next.js, designed to process customer support or sales call recordings and generate actionable intelligence. It transcribes audio containing multiple languages (with full support for English, Hindi, Telugu, Tamil, and code-switching), detects speaker turns, synchronizes audio playback with the transcript text, and extracts deep AI-driven insights.
+AuraIntel is a modern, enterprise-grade B2B web application built for Indian BPO and customer support teams. It acts as an automated AI Quality Assurance platform that ingests multilingual call recordings, transcribes them natively (with deep support for Hinglish, Tanglish, and code-switching), and scores agents on critical KPIs automatically.
 
 ## Key Features
 
-1. **Audio Upload**: Supports MP3, WAV, and M4A formats with reactive progress indicators and asynchronous processing status polling (`queued` -> `transcribing` -> `analyzing` -> `completed` / `failed`).
-2. **Speech-to-Text with Speaker Diarization**: 
-   - **Primary (AssemblyAI)**: Provides highly accurate multilingual transcriptions with millisecond-level timestamps and speaker separation.
-   - **Fallback (Gemini API)**: Processes files directly using Gemini's native audio understanding via the Files API when AssemblyAI is not configured.
-3. **Multilingual & Code-Switching Support**: Seamlessly detects and transcribes languages (English, Hindi, Tamil, Telugu) and hybrid code-switched dialogues (e.g., Hinglish, Tanglish).
-4. **AI Insights Generation (via Gemini 2.5 Flash)**:
-   - **Executive Summary**: Narrative overview of the conversation.
-   - **Key Discussion Points**: Categorized key topics.
-   - **Action Items**: Detailed tasks with assigned owners (Agent/Customer) and urgency levels (High, Medium, Low).
-   - **Customer Intent**: Core intent/objective of the call (e.g. Refund request, Sale inquiry).
-   - **Sentiment Analysis**: Overall conversation sentiment.
-   - **Call Outcome**: Final result classification (e.g., Sale Closed, Follow-up Scheduled, Problem Resolved).
-5. **Interactive Audio-Synced Transcript**: Clicking on any utterance in the transcript seeks the audio player to that exact timestamp. The transcript acts as a "karaoke style" scroll, highlighting the currently active speaker turn in real-time during audio playback.
-6. **Zero-Configuration Portable DB**: Built on a lightweight file-system JSON database (`data/db.json`), making the application fully portable and self-contained without needing Postgres, Mongo, or MySQL setups.
+1. **Enterprise Call Ingestion & Storage**: Supports MP3, WAV, and M4A formats with robust cloud storage via **Vercel Blob**.
+2. **Multilingual Speech-to-Text**: 
+   - Transcribes native regional languages (English, Hindi, Tamil, Telugu) completely verbatim.
+   - Handles hybrid code-switching dialects flawlessly (e.g. speaking Hindi and English in the same sentence).
+3. **Automated B2B QA Scoring & Insights**:
+   - Scores agents on KPIs like Greeting, Issue Resolution, Tone, Compliance, and Next Steps.
+   - Extracts actionable insights: Customer Intent, Sentiment, Call Outcome.
+   - Built on a robust **Gemini Multi-Model Fallback Engine**. It automatically cycles through `gemini-1.5-flash-latest`, `gemini-1.5-pro-latest`, and `gemini-2.5-flash` to ensure zero downtime from API quota limits or model restrictions.
+4. **Interactive Audio-Synced Workspace**: 
+   - Clicking any utterance in the transcript seeks the audio player to that exact millisecond.
+   - Acts as a "karaoke style" scroll, highlighting the active speaker in real-time.
+5. **Team Workspaces & Authentication**: 
+   - Secure login and team member management powered by **Clerk**.
+6. **Serverless Relational Database**: 
+   - State and analytics stored securely on **Neon Postgres**.
 
 ---
 
 ## Technical Stack
 
-- **Framework**: Next.js 15 (App Router, dynamic routes, API endpoints)
+- **Framework**: Next.js 16.2 App Router (Turbopack)
 - **Language**: TypeScript
-- **Styling**: Vanilla CSS (Modern dark mode, glassmorphism, responsive grid, micro-animations)
-- **STT SDK**: AssemblyAI Node SDK (`assemblyai`)
+- **Styling**: Vanilla CSS (Premium Dark Mode aesthetics, glassmorphism, fluid micro-animations)
+- **Authentication**: Clerk (`@clerk/nextjs`)
+- **Database**: Neon Serverless Postgres (`@neondatabase/serverless`)
+- **Storage**: Vercel Blob (`@vercel/blob`)
 - **AI SDK**: Google Gen AI Node SDK (`@google/genai`)
+- **STT SDK**: AssemblyAI Node SDK (`assemblyai`)
 - **Icons**: Lucide React (`lucide-react`)
 
 ---
@@ -35,78 +39,55 @@ AuraIntel is a modern, high-end, responsive web application built with Next.js, 
 ## Installation & Setup
 
 ### 1. Prerequisites
-Ensure you have the following installed on your machine:
-- **Node.js**: `v18.x` or later (tested on Node `v24.x`)
-- **NPM**: `v9.x` or later (tested on NPM `v11.x`)
-- **Git**: Installed (for repository operations)
+- **Node.js**: `v18.x` or later
+- **NPM**: `v9.x` or later
 
 ### 2. Install Dependencies
-Navigate to the project root directory and install dependencies:
 ```bash
 npm install
 ```
 
 ### 3. Configure Environment Variables
-Create a file named `.env.local` in the root of the project:
-```env
-# Required for AI Insights and fallback transcription
-GEMINI_API_KEY=your_gemini_api_key_here
+Create a file named `.env.local` in the root of the project. You must supply the following keys for the B2B pipeline to work:
 
-# Recommended for premium-grade STT, diarization and timestamps
-ASSEMBLYAI_API_KEY=your_assemblyai_api_key_here
+```env
+# Google Gemini (Required for B2B QA Insights & Fallback STT)
+GEMINI_API_KEY=your_gemini_api_key
+
+# AssemblyAI (Required for Millisecond-Accurate Multilingual STT)
+ASSEMBLYAI_API_KEY=your_assemblyai_api_key
+
+# Clerk Authentication
+NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY=your_clerk_publishable_key
+CLERK_SECRET_KEY=your_clerk_secret_key
+
+# Neon Database
+DATABASE_URL=your_neon_postgres_connection_string
+
+# Vercel Blob (Must be configured as a PUBLIC store)
+BLOB_READ_WRITE_TOKEN=your_vercel_blob_token
 ```
-> **Note**: If `ASSEMBLYAI_API_KEY` is not provided, the platform will fall back to transcribing the audio directly using Gemini 2.5 Flash.
 
 ---
 
-## Running the Application
+## Running Locally
 
-### 1. Run in Development Mode
-Start the local development server:
+Start the local Turbopack development server:
 ```bash
 npm run dev
 ```
-Open [http://localhost:3000](http://localhost:3000) in your web browser.
-
-### 2. Build for Production
-To build a production-optimized version:
-```bash
-npm run build
-```
-
-Run the production server:
-```bash
-npm start
-```
+Open [http://localhost:3000](http://localhost:3000) in your web browser. 
 
 ---
 
-## GitHub Repository Creation & Deployment
+## Deployment to Vercel
 
-To make the codebase accessible to interviewers, you can automatically create a GitHub repository in your account and push the sources using the provided utility script.
+This B2B SaaS is heavily optimized for Vercel's edge network and serverless environment.
 
-### Push to GitHub
-1. Generate a **GitHub Personal Access Token (PAT)**:
-   - Go to: GitHub Settings -> Developer settings -> Personal access tokens -> Tokens (classic).
-   - Generate a new token and select the **`repo`** scope.
-2. Run the push script:
-   ```bash
-   node scripts/git-push.js
-   ```
-3. Enter your Personal Access Token (PAT) when prompted, along with the desired repository name.
-4. The script will authenticate, create the repository on your GitHub account, configure local Git credentials, and push all files (excluding keys and temporary uploads as per `.gitignore`).
-
----
-
-## Deploying to Production (e.g. Vercel)
-
-Next.js projects deploy seamlessly to **Vercel**:
 1. Push your repository to GitHub.
-2. Sign in to [Vercel](https://vercel.com) and click **"Add New Project"**.
-3. Select your `multilingual-call-intel` repository.
-4. Expand **Environment Variables** and add:
-   - `GEMINI_API_KEY`
-   - `ASSEMBLYAI_API_KEY` (optional)
-5. Click **"Deploy"**. Vercel will automatically build, package, and host your serverless APIs and React pages.
+2. Import the project in Vercel.
+3. Attach your **Vercel Postgres (Neon)** and **Vercel Blob (Public)** stores directly in the Vercel Storage tab.
+4. Ensure all other environment variables (Clerk, Gemini, AssemblyAI) are populated.
+5. Click **Deploy**.
 
-*Note on Vercel deployment: Since Vercel is serverless, uploaded files saved to `public/uploads` are ephemeral. For production scale, configure files to upload directly to Amazon S3 or Google Cloud Storage.*
+> **Important**: Ensure your Vercel Blob store is set to **Public Access** so the audio player in the client-side browser can directly stream the MP3 files.
