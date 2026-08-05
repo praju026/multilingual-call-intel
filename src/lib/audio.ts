@@ -221,21 +221,25 @@ export async function transcribeAudio(
       required: ['detectedLanguages', 'turns']
     };
 
-    try {
-      let response;
-      let attempts2 = 0;
-      while (attempts2 < 3) {
-        try {
-          response = await ai.models.generateContent({
-            model: 'gemini-1.5-flash',
-            contents: [
-              {
-                fileData: {
-                  fileUri: uploadResult.uri,
-                  mimeType: uploadResult.mimeType
-                }
-              },
-              `You are an expert audio transcription system. Transcribe the EXACT spoken words verbatim from the audio recording in their NATIVE script.
+      try {
+        let response;
+        const fallbackModels = ['gemini-1.5-flash-latest', 'gemini-1.5-flash-001', 'gemini-1.5-flash-002', 'gemini-1.5-pro-latest', 'gemini-2.5-flash'];
+        let success = false;
+        let lastError: any = null;
+
+        for (const currentModel of fallbackModels) {
+          try {
+            console.log(`[AuraIntel STT] Attempting Gemini fallback with model: ${currentModel}`);
+            response = await ai.models.generateContent({
+              model: currentModel,
+              contents: [
+                {
+                  fileData: {
+                    fileUri: uploadResult.uri,
+                    mimeType: uploadResult.mimeType
+                  }
+                },
+                `You are an expert audio transcription system. Transcribe the EXACT spoken words verbatim from the audio recording in their NATIVE script.
 ${fullLangName ? `\nCRITICAL: The primary language spoken in this audio is "${fullLangName}". You MUST transcribe strictly in the native ${fullLangName} script when they speak ${fullLangName}.` : ''}
 CRITICAL RULES:
 1. NEVER TRANSLATE. If the speaker speaks ${fullLangName || 'a regional language'}, transcribe it EXACTLY in the ${fullLangName || 'native'} alphabet/script. Do NOT translate it to English.
@@ -246,20 +250,23 @@ CRITICAL RULES:
 6. Differentiate speakers clearly (Speaker A, Speaker B, etc.).
 7. Estimate accurate start and end timestamps for each utterance in MM:SS format.
 8. Provide the output strictly matching the provided JSON schema.`
-            ],
-            config: {
-              responseMimeType: 'application/json',
-              responseSchema: responseSchema as any
-            }
-          });
-          break;
-        } catch (err: any) {
-          attempts2++;
-          console.warn(`[AuraIntel STT] Gemini API attempt ${attempts2} failed: ${err.message}. ${attempts2 < 3 ? 'Retrying...' : ''}`);
-          if (attempts2 >= 3) throw err;
-          await new Promise(resolve => setTimeout(resolve, 2000 * attempts2));
+              ],
+              config: {
+                responseMimeType: 'application/json',
+                responseSchema: responseSchema as any
+              }
+            });
+            success = true;
+            break; // Break on success
+          } catch (err: any) {
+            lastError = err;
+            console.warn(`[AuraIntel STT] Gemini model ${currentModel} failed: ${err.message}. Trying next fallback...`);
+          }
         }
-      }
+
+        if (!success) {
+          throw lastError || new Error('All Gemini fallback models failed.');
+        }
 
       const responseText = response?.text;
       if (!responseText) {

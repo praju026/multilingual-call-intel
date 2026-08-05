@@ -189,24 +189,31 @@ Please return the results in the exact JSON schema requested.
   };
 
   let response;
-  let attempts = 0;
-  while (attempts < 3) {
+  const fallbackModels = ['gemini-1.5-flash-latest', 'gemini-1.5-flash-001', 'gemini-1.5-flash-002', 'gemini-1.5-pro-latest', 'gemini-2.5-flash'];
+  let success = false;
+  let lastError: any = null;
+
+  for (const currentModel of fallbackModels) {
     try {
+      console.log(`[AuraIntel Insights] Attempting Gemini QA Analysis with model: ${currentModel}`);
       response = await ai.models.generateContent({
-        model: 'gemini-1.5-flash',
+        model: currentModel,
         contents: prompt,
         config: {
           responseMimeType: 'application/json',
           responseSchema: responseSchema as any
         }
       });
-      break;
+      success = true;
+      break; // Break on success
     } catch (err: any) {
-      attempts++;
-      console.warn(`[AuraIntel Insights] Gemini API attempt ${attempts} failed: ${err.message}. ${attempts < 3 ? 'Retrying...' : ''}`);
-      if (attempts >= 3) throw err;
-      await new Promise(resolve => setTimeout(resolve, 2000 * attempts));
+      lastError = err;
+      console.warn(`[AuraIntel Insights] Gemini model ${currentModel} failed: ${err.message}. Trying next fallback...`);
     }
+  }
+
+  if (!success) {
+    throw lastError || new Error('All Gemini fallback models failed.');
   }
 
   const responseText = response?.text;
