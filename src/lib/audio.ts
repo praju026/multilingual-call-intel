@@ -227,7 +227,7 @@ export async function transcribeAudio(
       while (attempts2 < 3) {
         try {
           response = await ai.models.generateContent({
-            model: 'gemini-2.0-flash',
+            model: 'gemini-2.5-flash',
             contents: [
               {
                 fileData: {
