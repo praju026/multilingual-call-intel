@@ -68,7 +68,7 @@ export async function uploadAudioFile(buffer: Buffer, filename: string): Promise
   if (hasCloudBlobStorage()) {
     try {
       const { put } = await import('@vercel/blob');
-      const blob = await put(filename, new Blob([buffer]), { 
+      const blob = await put(filename, new Blob([buffer as any]), { 
         access: 'public',
         token: process.env.BLOB_READ_WRITE_TOKEN 
       });
